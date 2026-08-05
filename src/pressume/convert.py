@@ -37,9 +37,10 @@ def markdown_to_typst_body(markdown: str) -> str:
 def bundled_font_dirs() -> list[Path]:
     """Return every bundled OFL font directory.
 
-    Bundling the default typeface means a fresh install renders identically
-    on every machine with no font setup and no silent fallback; a document
-    repo carries content and one configuration file, nothing else.
+    The theme fonts ship with the package, so a fresh install renders without
+    installing fonts first. Directories from ``[paths].fonts`` are searched
+    ahead of these, which means a user font with the same family name is used
+    instead of the bundled one.
     """
     from importlib.resources import files
 

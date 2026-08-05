@@ -72,9 +72,7 @@ class DocumentRules:
     """The configurable half of the contract. Defaults are the strict resume case.
 
     A named profile in configuration starts from these defaults and overrides
-    what it declares. The intended second profile is a full CV: wider section
-    vocabulary, H4 project headings inside roles, numbered citation lists in
-    publication sections, and a contact block instead of a single contact line.
+    only what it declares.
     """
 
     # Every standard resume and CV section, in canonical order. A document
@@ -388,21 +386,22 @@ def _structure_rules(
         if ORDERED_ITEM.match(line) and current_section not in ordered_allowed:
             findings.append(f"line {number}: S4 ordered list; use hyphen bullets")
 
-        if not line.strip():
-            pass  # blank lines between a role heading and its first line are fine
-        elif line.strip().startswith("-") or ORDERED_ITEM.match(line):
+        # A blank line matches no branch below, so it never closes a role block:
+        # the gap between a role heading and its first line is normal.
+        stripped = line.strip()
+        if stripped.startswith("-") or ORDERED_ITEM.match(line):
             if expect_role_first_line and current_section in subheadings:
                 findings.append(
                     f"line {number}: S6 the first line of a role block is a bold title "
                     "or a pipe-delimited metadata line, not a bullet"
                 )
                 expect_role_first_line = False
-        elif current_section in labeled and not THEMATIC_BREAK.match(line):
+        elif stripped and current_section in labeled and not THEMATIC_BREAK.match(line):
             if not LABELED_LINE.match(line.rstrip()):
                 findings.append(
                     f"line {number}: S5 lines in a labeled section must read '**Label:** content'"
                 )
-        elif current_section in subheadings and not THEMATIC_BREAK.match(line):
+        elif stripped and current_section in subheadings and not THEMATIC_BREAK.match(line):
             _role_line_rules(number, line, expect_role_first_line, date_style, findings)
             expect_role_first_line = False
 

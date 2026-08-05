@@ -1,3 +1,4 @@
+# Build and tooling artifacts.
 __pycache__/
 *.pyc
 *.egg-info/
@@ -9,4 +10,42 @@ build/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Operating system and editor cruft. Nobody else wants these, and .DS_Store in
+# particular records what a folder looked like on one person's machine.
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Credentials. Nothing that could hold one belongs anywhere near a commit.
+.env
+.env.*
+*.pem
+*.key
+
+# Local working notes and assistant instructions. These describe one person's
+# machine, folders, and habits. The parts worth publishing live in
+# CONTRIBUTING.md; the rest stays local.
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.claude/
+
+# Rendered output. Derived from the Markdown sources, which are the versioned
+# thing; tracking renders only produces diff noise and version drift.
 renders/
+# The same documents when someone renders beside the source instead. Anchored
+# to the repository root so a font licence or a test fixture is never caught.
+/*.pdf
+/*.txt
+/*.docx
+
+# What the documented quick start writes into a clone: a starter configuration,
+# a starter document, and the folder CI's packaging smoke test builds in. None
+# of it belongs to the project; it belongs to whoever ran the commands.
+/pressume.toml
+/reference.docx
+/Resume.md
+/CV.md
+/smoke/

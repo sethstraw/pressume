@@ -13,9 +13,9 @@ import platform
 import time
 import webbrowser
 from collections.abc import Callable
+from dataclasses import asdict, dataclass
 from importlib.metadata import version
 from pathlib import Path
-from typing import cast
 
 from rich.console import Console
 from rich.table import Table
@@ -70,7 +70,7 @@ formats = ["pdf", "txt"]
 [style]
 theme = "modern"          # modern, technical, or traditional
 density = "balanced"      # compact, balanced, or spacious
-paper = "us-letter"       # use "a4" for most countries outside North America
+paper = "us-letter"       # us-letter or a4
 language = "en"
 region = "US"
 pdf_standard = "ua-1"     # accessible PDF/UA; use "default" if a portal rejects it
@@ -84,6 +84,8 @@ file = "Resume.md"
 pages = 1
 # min_pages = 1            # use a range instead of pages
 # max_pages = 2
+# profile = "cv"           # a [profiles.NAME] contract for this document
+# lint_only = false        # true to check the source without rendering it
 # output_name = "Your_Name_Resume"
 # title = "Your Name - Resume"
 # author = "Your Name"
@@ -108,6 +110,11 @@ section_vocabulary = [
 required_sections = ["Summary", "Professional Experience"]
 labeled_sections = ["Core Skills"]
 subheading_sections = ["Professional Experience"]
+# ordered_list_sections = ["Publications"]  # sections that may number entries
+# dated_sections = ["Education"]            # sections whose entries need a year
+# citation_field_labels = ["DOI"]           # labels a citation sub-bullet may use
+# max_heading_level = 3    # 4 allows project headings inside a role
+# contact_after_name = true                 # false accepts a CV contact block
 # warning_rules = ["S6"]  # demote named rules to advisory findings
 # disabled_rules = []      # disable only rules inappropriate for this project
 
@@ -131,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the complete argument parser without reading user state."""
     parser = argparse.ArgumentParser(
         prog="pressume",
-        description="Render polished, verified resume PDFs from Markdown.",
+        description="Render and verify resume PDFs from Markdown.",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -160,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-verify", action="store_true", help="render without checks; diagnostic use only"
     )
     _add_style_overrides(render)
-    render.set_defaults(handler=_handle_render)
+    render.set_defaults(handler=_render)
 
     preview = commands.add_parser(
         "preview",
@@ -173,20 +180,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--watch", action="store_true", help="re-render when a Markdown file changes"
     )
     preview.add_argument("--open", action="store_true", help="open the first rendered PDF")
-    preview.set_defaults(handler=_handle_preview)
+    preview.set_defaults(handler=_preview)
 
     check = commands.add_parser(
         "check", help="verify existing output without rendering", parents=[source_output]
     )
     _add_document_arguments(check)
-    check.set_defaults(handler=_handle_check)
+    check.set_defaults(handler=_check)
 
     lint = commands.add_parser(
         "lint", help="validate Markdown sources without rendering", parents=[source]
     )
     lint.add_argument("files", nargs="*", help="specific Markdown files; default: configured/all")
     lint.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    lint.set_defaults(handler=_handle_lint)
+    lint.set_defaults(handler=_lint)
 
     inspect = commands.add_parser(
         "inspect",
@@ -197,23 +204,23 @@ def build_parser() -> argparse.ArgumentParser:
         "files", nargs="*", help="specific Markdown files; default: configured/all"
     )
     inspect.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    inspect.set_defaults(handler=_handle_inspect)
+    inspect.set_defaults(handler=_inspect)
 
     listing = commands.add_parser(
         "list", help="show which documents and artifacts Pressume selects", parents=[source_output]
     )
     listing.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    listing.set_defaults(handler=_handle_list)
+    listing.set_defaults(handler=_list_documents)
 
     clean = commands.add_parser(
         "clean", help="find stale outputs tracked by Pressume", parents=[source_output]
     )
     clean.add_argument("--apply", action="store_true", help="remove the listed stale files")
     clean.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    clean.set_defaults(handler=_handle_clean)
+    clean.set_defaults(handler=_clean)
 
     commands.add_parser("init", help="write a documented starter configuration").set_defaults(
-        handler=_handle_init
+        handler=_init
     )
 
     new = commands.add_parser(
@@ -221,14 +228,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     new.add_argument("kind", choices=("resume", "cv"), help="template to use")
     new.add_argument("filename", nargs="?", help="default: Resume.md or CV.md")
-    new.set_defaults(handler=_handle_new)
+    new.set_defaults(handler=_new)
 
     commands.add_parser("refdoc", help="generate the configured DOCX style reference").set_defaults(
-        handler=_handle_refdoc
+        handler=_refdoc
     )
     doctor = commands.add_parser("doctor", help="show installation and project diagnostics")
     doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-    doctor.set_defaults(handler=_handle_doctor)
+    doctor.set_defaults(handler=_doctor)
     return parser
 
 
@@ -268,8 +275,6 @@ def main(argv: list[str] | None = None) -> int:
 def _dispatch(
     parser: argparse.ArgumentParser, arguments: argparse.Namespace, errors: Console
 ) -> int:
-    # Each subparser binds its own handler in build_parser (argparse's
-    # set_defaults pattern), so adding a command never touches dispatch.
     if arguments.command is None:
         parser.print_help()
         return EXIT_OK
@@ -285,35 +290,19 @@ def _project(arguments: argparse.Namespace) -> Config:
     return config
 
 
-def _handle_init(arguments: argparse.Namespace, errors: Console) -> int:
-    return _init(arguments.config or DEFAULT_CONFIG, errors)
-
-
-def _handle_new(arguments: argparse.Namespace, errors: Console) -> int:
-    return _new(arguments, _project(arguments), errors)
-
-
-def _handle_doctor(arguments: argparse.Namespace, errors: Console) -> int:
-    return _doctor(_project(arguments), arguments.json)
-
-
-def _handle_list(arguments: argparse.Namespace, errors: Console) -> int:
-    return _list_documents(_project(arguments), arguments.json)
-
-
-def _handle_clean(arguments: argparse.Namespace, errors: Console) -> int:
+def _clean(arguments: argparse.Namespace, errors: Console) -> int:
     from pressume.pipeline import clean_outputs
 
     return clean_outputs(_project(arguments), arguments.apply, as_json=arguments.json)
 
 
-def _handle_inspect(arguments: argparse.Namespace, errors: Console) -> int:
+def _inspect(arguments: argparse.Namespace, errors: Console) -> int:
     from pressume.pipeline import inspect_existing
 
     return inspect_existing(_project(arguments), arguments.files, as_json=arguments.json)
 
 
-def _handle_refdoc(arguments: argparse.Namespace, errors: Console) -> int:
+def _refdoc(arguments: argparse.Namespace, errors: Console) -> int:
     from pressume.refdoc import build_reference_docx
 
     config = _project(arguments)
@@ -324,13 +313,13 @@ def _handle_refdoc(arguments: argparse.Namespace, errors: Console) -> int:
     return EXIT_OK
 
 
-def _handle_lint(arguments: argparse.Namespace, errors: Console) -> int:
+def _lint(arguments: argparse.Namespace, errors: Console) -> int:
     from pressume.pipeline import lint_only
 
     return lint_only(_project(arguments), arguments.files, as_json=arguments.json)
 
 
-def _handle_check(arguments: argparse.Namespace, errors: Console) -> int:
+def _check(arguments: argparse.Namespace, errors: Console) -> int:
     from pressume.pipeline import verify_existing
 
     return verify_existing(
@@ -341,11 +330,7 @@ def _handle_check(arguments: argparse.Namespace, errors: Console) -> int:
     )
 
 
-def _handle_preview(arguments: argparse.Namespace, errors: Console) -> int:
-    return _preview(_project(arguments), arguments, _format_override(arguments.formats), errors)
-
-
-def _handle_render(arguments: argparse.Namespace, errors: Console) -> int:
+def _render(arguments: argparse.Namespace, errors: Console) -> int:
     from pressume.pipeline import run
 
     return run(
@@ -385,8 +370,8 @@ def _format_override(value: str | None) -> list[str] | None:
     return validate_formats(value.split(","), "--formats")
 
 
-def _init(destination: Path, errors: Console) -> int:
-    destination = destination.expanduser()
+def _init(arguments: argparse.Namespace, errors: Console) -> int:
+    destination = (arguments.config or DEFAULT_CONFIG).expanduser()
     if destination.exists():
         errors.print(f"[red]{destination} already exists; not overwriting.[/red]")
         return EXIT_VERIFICATION_FAILED
@@ -396,9 +381,10 @@ def _init(destination: Path, errors: Console) -> int:
     return EXIT_OK
 
 
-def _new(arguments: argparse.Namespace, config: Config, errors: Console) -> int:
+def _new(arguments: argparse.Namespace, errors: Console) -> int:
     from importlib.resources import files
 
+    config = _project(arguments)
     # Chained single-segment joins: the 3.10 Traversable API accepts one
     # segment per call, and installed-package paths accept either form.
     template = files("pressume") / "templates" / f"{arguments.kind}.md"
@@ -417,72 +403,116 @@ def _new(arguments: argparse.Namespace, config: Config, errors: Console) -> int:
     return EXIT_OK
 
 
-def _doctor(config: Config, as_json: bool = False) -> int:
-    """Print concise environment and project diagnostics."""
+@dataclass(frozen=True)
+class Diagnostics:
+    """What `pressume doctor` reports, in the order it reports it."""
+
+    pressume: str
+    python: str
+    platform: str
+    pandoc: str
+    typst: str
+    source: str
+    source_found: bool
+    output: str
+    formats: list[str]
+    theme: str
+    font: str
+    density: str
+    pdf_standard: str
+    independent_extractors: list[str]
+
+
+def _diagnose(config: Config) -> Diagnostics:
+    """Collect every fact `pressume doctor` reports, once."""
     import pypandoc
 
-    source = config.resolve(config.source_dir)
-    output = config.resolve(config.output_dir)
+    from pressume.checks.pdfchecks import independent_extractor
     from pressume.template import resolve_style
 
     style = resolve_style(config.style)
-    from pressume.checks.pdfchecks import independent_extractor
-
     extractors = ["Poppler pdftotext"] if independent_extractor()[0] == "poppler" else []
     extractors.append(f"pdfminer.six {version('pdfminer.six')}")
-    payload = {
-        "pressume": __version__,
-        "python": platform.python_version(),
-        "platform": platform.system(),
-        "pandoc": str(pypandoc.get_pandoc_version()),
-        "typst": version("typst"),
-        "source": str(source),
-        "source_found": source.is_dir(),
-        "output": str(output),
-        "formats": config.formats,
-        "theme": style.theme.name,
-        "font": style.font,
-        "density": config.style.density,
-        "pdf_standard": style.pdf_standard,
-        "independent_extractors": extractors,
-    }
-    if as_json:
-        print(json.dumps(payload, indent=2))
-        return EXIT_OK if source.is_dir() else EXIT_VERIFICATION_FAILED
-    console = Console()
-    console.print(f"pressume {payload['pressume']}")
-    console.print(f"Python {payload['python']} ({payload['platform']})")
-    console.print(f"Pandoc {payload['pandoc']}")
-    console.print(f"Typst {payload['typst']}")
-    console.print(f"Source: {source} ({'found' if source.is_dir() else 'missing'})")
-    console.print(f"Output: {output}")
-    console.print(f"Formats: {', '.join(config.formats)}")
-    console.print(f"Theme: {style.theme.name} ({style.font}, {config.style.density})")
-    console.print(f"PDF standard: {style.pdf_standard}")
-    console.print(f"Independent extractors: {', '.join(extractors)}")
-    return EXIT_OK if source.is_dir() else EXIT_VERIFICATION_FAILED
+    source = config.resolve(config.source_dir)
+    return Diagnostics(
+        pressume=__version__,
+        python=platform.python_version(),
+        platform=platform.system(),
+        pandoc=str(pypandoc.get_pandoc_version()),
+        typst=version("typst"),
+        source=str(source),
+        source_found=source.is_dir(),
+        output=str(config.resolve(config.output_dir)),
+        formats=config.formats,
+        theme=style.theme.name,
+        font=style.font,
+        density=config.style.density,
+        pdf_standard=style.pdf_standard,
+        independent_extractors=extractors,
+    )
 
 
-def _list_documents(config: Config, as_json: bool) -> int:
+def _doctor(arguments: argparse.Namespace, errors: Console) -> int:
+    """Report environment and project diagnostics as JSON or as text."""
+    report = _diagnose(_project(arguments))
+    if arguments.json:
+        print(json.dumps(asdict(report), indent=2))
+    else:
+        console = Console()
+        console.print(f"pressume {report.pressume}")
+        console.print(f"Python {report.python} ({report.platform})")
+        console.print(f"Pandoc {report.pandoc}")
+        console.print(f"Typst {report.typst}")
+        console.print(f"Source: {report.source} ({'found' if report.source_found else 'missing'})")
+        console.print(f"Output: {report.output}")
+        console.print(f"Formats: {', '.join(report.formats)}")
+        console.print(f"Theme: {report.theme} ({report.font}, {report.density})")
+        console.print(f"PDF standard: {report.pdf_standard}")
+        console.print(f"Independent extractors: {', '.join(report.independent_extractors)}")
+    return EXIT_OK if report.source_found else EXIT_VERIFICATION_FAILED
+
+
+@dataclass(frozen=True)
+class DocumentPlan:
+    """What `pressume list` reports for one selected document."""
+
+    source: str
+    output_name: str
+    profile: str | None
+    lint_only: bool
+    formats: list[str]
+    pages: int | None
+    min_pages: int | None
+    max_pages: int | None
+
+    @property
+    def page_target(self) -> str:
+        """Describe the page requirement as an exact count or a range."""
+        if self.pages is not None:
+            return str(self.pages)
+        return f"{self.min_pages or 1}-{self.max_pages or 'any'}"
+
+
+def _list_documents(arguments: argparse.Namespace, errors: Console) -> int:
     """Show document discovery and the resolved artifact plan."""
     from pressume.pipeline import select_documents
 
-    documents = select_documents(config, [])
-    payload = [
-        {
-            "source": document.file,
-            "output_name": document.output_name or Path(document.file).stem,
-            "profile": document.profile,
-            "lint_only": document.lint_only,
-            "formats": document.formats or config.formats,
-            "pages": document.pages,
-            "min_pages": document.min_pages,
-            "max_pages": document.max_pages,
-        }
-        for document in documents
+    config = _project(arguments)
+    plan = [
+        DocumentPlan(
+            source=document.file,
+            output_name=document.output_name or Path(document.file).stem,
+            profile=document.profile,
+            lint_only=document.lint_only,
+            formats=document.formats or config.formats,
+            pages=document.pages,
+            min_pages=document.min_pages,
+            max_pages=document.max_pages,
+        )
+        for document in select_documents(config, [])
     ]
-    if as_json:
-        print(json.dumps({"documents": payload}, indent=2))
+    if arguments.json:
+        print(json.dumps({"documents": [asdict(item) for item in plan]}, indent=2))
         return EXIT_OK
     table = Table(title="Pressume document plan")
     table.add_column("Source")
@@ -490,33 +520,24 @@ def _list_documents(config: Config, as_json: bool) -> int:
     table.add_column("Formats")
     table.add_column("Pages")
     table.add_column("Profile")
-    for item in payload:
-        page_target = (
-            str(item["pages"])
-            if item["pages"] is not None
-            else f"{item['min_pages'] or 1}-{item['max_pages'] or 'any'}"
-        )
+    for item in plan:
         table.add_row(
-            str(item["source"]),
-            "lint only" if item["lint_only"] else str(item["output_name"]),
-            ", ".join(cast(list[str], item["formats"])),
-            page_target,
-            str(item["profile"] or "standard"),
+            item.source,
+            "lint only" if item.lint_only else item.output_name,
+            ", ".join(item.formats),
+            item.page_target,
+            item.profile or "standard",
         )
     Console().print(table)
     return EXIT_OK
 
 
-def _preview(
-    config: Config,
-    arguments: argparse.Namespace,
-    formats: list[str] | None,
-    errors: Console,
-) -> int:
+def _preview(arguments: argparse.Namespace, errors: Console) -> int:
     """Render once or poll Markdown modification times until interrupted."""
     from pressume.pipeline import run, select_documents
 
-    selected_formats = formats or ["pdf"]
+    config = _project(arguments)
+    selected_formats = _format_override(arguments.formats) or ["pdf"]
 
     def render_once() -> int:
         result = run(config, arguments.files, selected_formats, verify=True, as_json=False)

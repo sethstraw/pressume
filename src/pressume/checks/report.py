@@ -9,16 +9,14 @@ from __future__ import annotations
 
 import json
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from functools import partial
 
 from rich.console import Console
 from rich.table import Table
 
 
-class Severity(str, Enum):
+class Severity(Enum):
     """Outcome of one independently reportable verification check."""
 
     PASS = "pass"
@@ -34,15 +32,6 @@ class CheckResult:
     check: str
     severity: Severity
     detail: str = ""
-
-
-def grader(document: str, check: str) -> Callable[..., CheckResult]:
-    """Bind a document and check name into a verdict constructor.
-
-    Every check body then reads ``verdict(Severity.PASS, "detail")``, keeping
-    the code about the decision instead of result plumbing.
-    """
-    return partial(CheckResult, document, check)
 
 
 STYLE = {

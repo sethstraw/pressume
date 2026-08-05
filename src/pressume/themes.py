@@ -89,13 +89,3 @@ DENSITY_FACTORS = {
     "balanced": 1.0,
     "spacious": 1.12,
 }
-
-
-def theme_names() -> tuple[str, ...]:
-    """Return theme names in stable user-facing order."""
-    return tuple(THEMES)
-
-
-def resolve_theme(name: str) -> Theme:
-    """Return a named theme; configuration validation guards unknown names."""
-    return THEMES[name]

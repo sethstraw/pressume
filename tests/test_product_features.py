@@ -63,6 +63,16 @@ def test_linkification_preserves_visible_text_and_adds_destinations():
     assert "[doi:10.1000/example](https://doi.org/10.1000/example)" in linked
 
 
+def test_linkification_does_not_treat_an_orcid_as_a_phone_number():
+    linked = linkify_markdown(
+        "# JANE DOE\n\n"
+        "Toronto | jane@example.com | orcid.org/0000-0002-1825-0097\n\n"
+        "## Summary\n\nText.\n"
+    )
+    assert "tel:000" not in linked
+    assert "https://orcid.org/0000-0002-1825-0097" in linked
+
+
 def test_semantic_blocks_distinguish_resume_components():
     body = """\
 = JANE DOE
@@ -93,6 +103,78 @@ Doe J. Example. 2024.
     assert "#citation[" in styled
 
 
+# Two trailing spaces are a Markdown hard line break. They are the whole point
+# of this fixture, so they are spelled out rather than left invisible.
+BREAK = "  "
+MULTILINE_ROLE_RESUME = "\n".join(
+    [
+        "# JANE DOE",
+        "",
+        "Toronto, Ontario | jane@example.com",
+        "",
+        "## Summary",
+        "",
+        "A concise professional summary.",
+        "",
+        "## Professional Experience",
+        "",
+        "### Example Health",
+        "",
+        f"**Staff Architect**{BREAK}",
+        f"(title of record: Staff Architect - Platform){BREAK}",
+        "January 2020 to Present | Toronto, Ontario",
+        "",
+        "- Delivered the platform work that mattered.",
+        "",
+    ]
+)
+
+
+def test_role_metadata_written_across_lines_stays_one_component():
+    """A hard line break must not escape the closing bracket of its component.
+
+    Pandoc writes a Markdown hard break as a trailing backslash. Wrapping only
+    the first line of such a paragraph leaves that backslash immediately before
+    the component's closing bracket, where it escapes the bracket and the
+    document no longer parses.
+    """
+    body = """\
+= JANE DOE
+<jane-doe>
+Toronto | jane@example.com
+
+== PROFESSIONAL EXPERIENCE
+<professional-experience>
+=== Example Health
+<example-health>
+#strong[Staff Architect] \\
+(title of record: Staff Architect - Platform) \\
+January 2020 to Present | Toronto, Ontario
+
+- Delivered the platform work that mattered.
+"""
+    styled = apply_semantic_blocks(body)
+
+    assert styled.count("#role-meta[") == 1
+    assert "January 2020 to Present | Toronto, Ontario]" in styled
+    assert "\\]" not in styled
+
+
+@pytest.mark.parametrize("theme", ["modern", "technical", "traditional"])
+def test_a_multiline_role_header_renders_under_every_theme(tmp_path, theme):
+    """Every shipped theme has to render the same conforming document."""
+    source = tmp_path / "Resume.md"
+    source.write_text(MULTILINE_ROLE_RESUME, encoding="utf-8")
+    config = Config(config_dir=tmp_path, style=Style(theme=theme))
+    metadata = derive_metadata(MULTILINE_ROLE_RESUME, Document(file="Resume.md"), "en", "CA")
+    pdf = tmp_path / f"resume-{theme}.pdf"
+
+    render_pdf(MULTILINE_ROLE_RESUME, pdf, config, metadata)
+
+    assert pdf.exists()
+    assert pdf.stat().st_size > 0
+
+
 def test_pdf_has_metadata_language_links_and_independent_delivery_checks(tmp_path):
     config = Config(config_dir=tmp_path)
     document = Document(file="Resume.md", title="Jane Doe - Data Resume", keywords=["data"])
@@ -117,6 +199,100 @@ def test_docx_is_reopened_and_verified(tmp_path):
     results = check_docx("resume", docx, checks, metadata, RESUME)
     assert not [result for result in results if result.severity.value == "fail"]
     assert extract_docx_text(docx).splitlines()[0] == "JANE DOE"
+
+
+def failing_checks(results, name):
+    return [
+        result for result in results if result.check == name and result.severity.value == "fail"
+    ]
+
+
+def test_a_corrupt_docx_fails_the_package_check_instead_of_raising(tmp_path):
+    not_a_docx = tmp_path / "resume.docx"
+    not_a_docx.write_bytes(b"PK\x03\x04 truncated")
+    metadata = derive_metadata(RESUME, Document(file="Resume.md"), "en", "CA")
+    results = check_docx("resume", not_a_docx, Checks(), metadata, RESUME)
+    assert failing_checks(results, "docx: package")
+
+
+def test_docx_checks_catch_tables_metadata_residue_and_dropped_links(tmp_path):
+    """The three DOCX failures a recipient would actually notice.
+
+    A table breaks linear extraction, leftover authoring metadata travels with
+    the file, and a hyperlink present in the source but absent from the package
+    relationships is a link that no longer works.
+    """
+    import zipfile
+
+    config = Config(config_dir=tmp_path)
+    metadata = derive_metadata(RESUME, Document(file="Resume.md", title="Jane"), "en", "CA")
+    original = tmp_path / "resume.docx"
+    render_docx(RESUME, original, config, metadata)
+
+    damaged = tmp_path / "damaged.docx"
+    with zipfile.ZipFile(original) as source, zipfile.ZipFile(damaged, "w") as destination:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            if item.filename == "word/document.xml":
+                data = data.replace(b"<w:body>", b"<w:body><w:tbl></w:tbl>", 1)
+            elif item.filename == "docProps/core.xml":
+                data = data.replace(b"<dc:title>", b"<dc:title>Someone Else ", 1)
+            elif item.filename == "word/_rels/document.xml.rels":
+                data = b'<?xml version="1.0"?><Relationships xmlns="http://schemas.'
+                data += b'openxmlformats.org/package/2006/relationships"/>'
+            destination.writestr(item, data)
+
+    results = check_docx("resume", damaged, Checks(date_style="off"), metadata, RESUME)
+    assert failing_checks(results, "docx: linear structure")
+    assert failing_checks(results, "docx: metadata")
+    assert failing_checks(results, "docx: hyperlinks")
+
+
+def test_docx_metadata_check_rejects_leftover_custom_properties(tmp_path):
+    import zipfile
+
+    config = Config(config_dir=tmp_path)
+    metadata = derive_metadata(RESUME, Document(file="Resume.md"), "en", "CA")
+    original = tmp_path / "resume.docx"
+    render_docx(RESUME, original, config, metadata)
+
+    with_custom = tmp_path / "custom.docx"
+    with zipfile.ZipFile(original) as source, zipfile.ZipFile(with_custom, "w") as destination:
+        for item in source.infolist():
+            destination.writestr(item, source.read(item.filename))
+        destination.writestr("docProps/custom.xml", b"<Properties/>")
+
+    results = check_docx("resume", with_custom, Checks(date_style="off"), metadata, RESUME)
+    failures = failing_checks(results, "docx: metadata")
+    assert failures and "custom authoring metadata" in failures[0].detail
+
+
+def test_pdf_delivery_checks_catch_wrong_metadata_lost_tags_and_dropped_links(tmp_path):
+    """The PDF failures that survive into the recipient's hands.
+
+    Rewriting the PDF with pypdf drops the document catalogue's language and
+    structure tree and the link annotations, and the expected metadata is
+    supplied from a different document, so all three checks have to fail.
+    """
+    config = Config(config_dir=tmp_path)
+    metadata = derive_metadata(RESUME, Document(file="Resume.md"), "en", "CA")
+    original = tmp_path / "resume.pdf"
+    render_pdf(RESUME, original, config, metadata)
+
+    stripped = tmp_path / "stripped.pdf"
+    writer = PdfWriter()
+    for page in PdfReader(original).pages:
+        writer.add_page(page)
+    for page in writer.pages:
+        if "/Annots" in page:
+            del page["/Annots"]
+    with stripped.open("wb") as stream:
+        writer.write(stream)
+
+    results = check_pdf_delivery("resume", stripped, metadata, RESUME)
+    assert failing_checks(results, "pdf: metadata")
+    assert failing_checks(results, "pdf: accessibility structure")
+    assert failing_checks(results, "pdf: hyperlinks")
 
 
 def test_modern_theme_preserves_visual_hierarchy_and_geometry(tmp_path):

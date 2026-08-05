@@ -8,13 +8,16 @@ from dataclasses import dataclass
 
 from pressume.config import Style
 from pressume.metadata import DocumentMetadata
-from pressume.themes import DENSITY_FACTORS, Theme, resolve_theme
+from pressume.themes import DENSITY_FACTORS, THEMES, Theme
 
 BOLD_LABEL = re.compile(r"^\*[^*\n]+\*\\?$")
 THEMATIC_BREAK = re.compile(r"^-{3,}\s*$")
 SECTION = re.compile(r"^==\s+(.+?)\s*$")
 ROLE = re.compile(r"^===\s+(.+?)\s*$")
 ANCHOR = re.compile(r"^<[^>]+>$")
+# Pandoc writes a Markdown hard line break as a trailing backslash, so one
+# paragraph can span several source lines.
+CONTINUED = re.compile(r"\\\s*$")
 
 RECORD_SECTIONS = {
     "education",
@@ -53,7 +56,7 @@ class ResolvedStyle:
 
 def resolve_style(style: Style) -> ResolvedStyle:
     """Resolve a partial style overlay against a coordinated theme."""
-    theme = resolve_theme(style.theme)
+    theme = THEMES[style.theme]
     return ResolvedStyle(
         theme=theme,
         font=style.font or theme.font,
@@ -128,6 +131,38 @@ def keep_traditional_labels_with_lists(typst_body: str) -> str:
     return "\n".join(output) + "\n"
 
 
+def logical_paragraph(lines: list[str], start: int) -> tuple[str, int]:
+    """Return the whole paragraph beginning at ``start`` and the index after it.
+
+    A Markdown hard line break becomes a trailing backslash in Typst, which
+    means a role header written across three lines arrives here as three source
+    lines belonging to one paragraph. Anything that wraps content in a component
+    has to take all of them or none: wrapping only the first puts that backslash
+    immediately before the closing bracket, where it escapes the bracket instead
+    of breaking the line and the document stops parsing.
+    """
+    collected = [lines[start]]
+    index = start
+    while (
+        CONTINUED.search(lines[index])
+        and index + 1 < len(lines)
+        and lines[index + 1].strip()
+        and not ANCHOR.match(lines[index + 1].strip())
+    ):
+        index += 1
+        collected.append(lines[index])
+    return "\n".join(collected), index + 1
+
+
+def wrap(component: str, content: str) -> str:
+    """Wrap content in a Typst component, without a dangling escape at the end.
+
+    A trailing backslash is a line break with nothing after it, so it is dropped
+    rather than left to escape the closing bracket.
+    """
+    return f"#{component}[{content.rstrip().rstrip(chr(92)).rstrip()}]"
+
+
 def apply_semantic_blocks(typst_body: str) -> str:
     """Map conventional resume structures to purpose-built Typst components."""
     lines = typst_body.splitlines()
@@ -135,8 +170,10 @@ def apply_semantic_blocks(typst_body: str) -> str:
     current_section = ""
     front_paragraph = 0
     role_pending = False
+    index = 0
 
-    for line in lines:
+    while index < len(lines):
+        line = lines[index]
         stripped = line.strip()
         section = SECTION.match(stripped)
         role = ROLE.match(stripped)
@@ -144,36 +181,41 @@ def apply_semantic_blocks(typst_body: str) -> str:
             current_section = section.group(1).casefold()
             role_pending = False
             output.append(line)
+            index += 1
             continue
         if role:
             role_pending = True
             output.append(line)
+            index += 1
             continue
         if not stripped or ANCHOR.match(stripped) or stripped.startswith("= "):
             output.append(line)
+            index += 1
             continue
+
+        paragraph, index = logical_paragraph(lines, index)
         if not current_section:
             component = "contact" if front_paragraph == 0 else "logistics"
-            output.append(f"#{component}[{line}]")
+            output.append(wrap(component, paragraph))
             front_paragraph += 1
             continue
         if role_pending:
-            output.append(f"#role-meta[{line}]")
+            output.append(wrap("role-meta", paragraph))
             role_pending = False
             continue
         if current_section in SKILL_SECTIONS and not stripped.startswith(("- ", "+ ")):
-            output.append(f"#skill-line[{line}]")
+            output.append(wrap("skill-line", paragraph))
             continue
         if any(word in current_section for word in CITATION_WORDS):
             if stripped.startswith(("- ", "+ ")):
-                output.append(line)
+                output.append(paragraph)
             else:
-                output.append(f"#citation[{line}]")
+                output.append(wrap("citation", paragraph))
             continue
         if current_section in RECORD_SECTIONS and not stripped.startswith(("- ", "+ ")):
-            output.append(f"#record[{line}]")
+            output.append(wrap("record", paragraph))
             continue
-        output.append(line)
+        output.append(paragraph)
     return keep_labels_with_lists("\n".join(output))
 
 

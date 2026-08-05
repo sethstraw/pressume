@@ -5,9 +5,22 @@ Uses Typst's bundled default fonts so no font installation is required in CI.
 
 from pathlib import Path
 
+import pytest
+
 from pressume.checks.pdfchecks import count_pages, extract_pdf_text
-from pressume.config import Config, Style
+from pressume.checks.report import Severity
+from pressume.config import (
+    KNOWN_FORMATS,
+    PDF_STANDARDS,
+    Checks,
+    Config,
+    Document,
+    Style,
+)
 from pressume.convert import render_pdf, render_txt
+from pressume.documents import SourceDocument
+from pressume.errors import RenderError
+from pressume.formats import render_artifact, verify_artifact
 from pressume.template import keep_labels_with_lists, strip_thematic_breaks
 
 FIXTURE = """\
@@ -97,3 +110,71 @@ def test_thematic_breaks_removed():
 def test_bold_labels_become_sticky_blocks():
     body = "*Flagship project*\n\n- Delivered the first thing.\n"
     assert "#role-label[*Flagship project*]" in keep_labels_with_lists(body)
+
+
+@pytest.mark.parametrize("standard", PDF_STANDARDS)
+def test_every_offered_pdf_standard_compiles(tmp_path, standard):
+    """A PDF standard configuration accepts is one Typst can actually emit."""
+    config = make_config(tmp_path)
+    config.style.pdf_standard = standard
+    pdf = tmp_path / f"{standard}.pdf"
+    render_pdf(FIXTURE, pdf, config)
+    assert count_pages(pdf) == 1
+
+
+def test_configured_font_directories_are_searched_before_the_bundled_ones(tmp_path, monkeypatch):
+    """`[paths].fonts` reaches Typst, ahead of the fonts that ship here.
+
+    Ordering is the whole behavior: a user font with a bundled family's name
+    wins, which is how a licensed corporate typeface replaces the default.
+    """
+    import typst
+
+    from pressume.convert import bundled_font_dirs
+
+    brand = tmp_path / "brand-fonts"
+    brand.mkdir()
+    seen: dict[str, object] = {}
+    monkeypatch.setattr(typst, "compile", lambda *args, **kwargs: seen.update(kwargs))
+
+    config = make_config(tmp_path)
+    config.font_dirs = [Path("brand-fonts")]
+    render_pdf(FIXTURE, tmp_path / "out.pdf", config)
+
+    paths = seen["font_paths"]
+    assert paths[0] == str(brand.resolve())
+    assert paths[1:] == [str(directory) for directory in bundled_font_dirs()]
+
+
+@pytest.mark.parametrize("name", KNOWN_FORMATS)
+def test_every_configured_format_renders_and_verifies(tmp_path, name):
+    """Configuration and implementation offer the same set of formats.
+
+    ``KNOWN_FORMATS`` is what configuration accepts. This renders and reopens
+    each of those names, so a format that gains a configuration entry without
+    an implementation fails here instead of in someone's render.
+    """
+    source_path = tmp_path / "Resume.md"
+    source_path.write_text(FIXTURE, encoding="utf-8")
+    config = make_config(tmp_path)
+    source = SourceDocument(Document(file="Resume.md"), source_path, FIXTURE)
+    artifact = tmp_path / f"Resume.{name}"
+
+    render_artifact(name, source, artifact, config)
+    assert artifact.stat().st_size > 0
+
+    results = verify_artifact(name, source, artifact, Checks(date_style="off"), config)
+    assert results, f"{name} produced no check results"
+    assert {result.document for result in results} == {"Resume"}
+    assert not [result for result in results if result.severity is Severity.FAIL]
+
+
+def test_an_unknown_format_name_is_refused_rather_than_guessed(tmp_path):
+    source_path = tmp_path / "Resume.md"
+    source_path.write_text(FIXTURE, encoding="utf-8")
+    source = SourceDocument(Document(file="Resume.md"), source_path, FIXTURE)
+    config = make_config(tmp_path)
+    with pytest.raises(RenderError, match="No renderer for format 'rtf'"):
+        render_artifact("rtf", source, tmp_path / "out.rtf", config)
+    with pytest.raises(RenderError, match="No verifier for format 'rtf'"):
+        verify_artifact("rtf", source, source_path, Checks(), config)

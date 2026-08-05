@@ -61,6 +61,49 @@ def test_clean_reports_nothing_stale_on_a_fresh_project(tmp_path, monkeypatch, c
     assert payload["results"][0]["detail"] == "no stale tracked output"
 
 
+def test_clean_removes_only_what_the_manifest_recorded(tmp_path, monkeypatch, capsys):
+    """`clean --apply` deletes generated files and nothing else.
+
+    A user's own file living beside the output is the case that matters: the
+    manifest is the only list pressume is allowed to delete from.
+    """
+    start_project(tmp_path, monkeypatch)
+    capsys.readouterr()
+    assert main(["render", "--json"]) == 0
+    capsys.readouterr()
+
+    renders = tmp_path / "renders"
+    keepsake = renders / "cover-letter.pdf"
+    keepsake.write_bytes(b"not pressume's file")
+    (tmp_path / "pressume.toml").write_text(
+        '[output]\nformats = ["pdf"]\n\n[[documents]]\nfile = "Resume.md"\n', encoding="utf-8"
+    )
+
+    assert main(["clean", "--apply", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    removed = [item["detail"] for item in payload["results"]]
+    assert any("removed: Resume.txt" in detail for detail in removed)
+    assert keepsake.read_bytes() == b"not pressume's file"
+    assert (renders / "Resume.pdf").exists()
+    assert not (renders / "Resume.txt").exists()
+
+
+def test_check_warns_when_the_manifest_still_tracks_a_renamed_output(tmp_path, monkeypatch, capsys):
+    start_project(tmp_path, monkeypatch)
+    capsys.readouterr()
+    assert main(["render", "--json"]) == 0
+    capsys.readouterr()
+    (tmp_path / "pressume.toml").write_text(
+        '[output]\nformats = ["pdf"]\n\n[[documents]]\nfile = "Resume.md"\n', encoding="utf-8"
+    )
+
+    assert main(["check", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    stale = [item for item in payload["results"] if item["check"] == "output manifest"]
+    assert stale and stale[0]["result"] == "warn"
+    assert "Resume.txt" in stale[0]["detail"]
+
+
 def test_inspect_warns_when_the_pdf_has_not_been_rendered(tmp_path, monkeypatch, capsys):
     start_project(tmp_path, monkeypatch)
     capsys.readouterr()

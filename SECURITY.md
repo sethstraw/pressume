@@ -1,28 +1,39 @@
 # Security policy
 
-## Supported versions
+## Supported version
 
-Security fixes are applied to the latest minor release. Users should update to
-the newest tagged version before reporting a problem that may already be fixed.
+Security fixes are made against the latest release. Please confirm the issue is
+still present there before reporting it.
 
-## Reporting a vulnerability
+## Report a vulnerability privately
 
-Please use [GitHub private vulnerability reporting](https://github.com/sethstraw/pressume/security/advisories/new).
-Do not open a public issue for a vulnerability before a fix is available.
+Use [GitHub private vulnerability reporting](https://github.com/sethstraw/pressume/security/advisories/new).
+Please do not open a public issue until there is a fix or the report has been
+reviewed.
 
-Include the affected version, operating system, minimal reproduction, expected
-behavior, and observed impact. Remove names, contact information, credentials,
-and resume content from every example. A synthetic Markdown document is enough
-for almost every report.
+Include the affected version, operating system, steps to reproduce, expected
+behavior, and observed impact. Use a synthetic Markdown file. Remove names,
+contact information, credentials, and real resume content from logs, examples,
+PDFs, and DOCX files.
 
-pressume makes no intentional network requests at runtime. It processes local
-Markdown, font, TOML, PDF, TXT, and DOCX files selected by the user and invokes
-the bundled Pandoc and Typst components. Reports involving unexpected file
-access, path traversal, generated-document injection, or dependency compromise
-are particularly important.
+Reports are especially useful when they involve:
 
-Generated PDF and DOCX files contain configured or derived title, author,
-description, keyword, and language metadata. DOCX output removes custom
-properties, the last-modified author, and Word revision-session identifiers.
-Users remain responsible for reviewing intentionally supplied document content
-and metadata before sharing a deliverable.
+- reading or writing files outside the paths the user selected;
+- unsafe cleanup, overwrite, or rollback behavior;
+- command or document injection;
+- malicious PDF, DOCX, Markdown, TOML, or font input;
+- an unexpected network request during normal runtime;
+- sensitive metadata that should have been removed;
+- a vulnerable or compromised dependency.
+
+## Local data and generated files
+
+pressume is intended to render and inspect local documents without uploading
+them. Installation and dependency updates require network access, but normal
+rendering, verification, preview watching, and cleanup make no intentional
+network requests. Opening a preview delegates to the local system viewer.
+
+PDF and DOCX output can contain configured or derived title, author,
+description, keywords, and language metadata. DOCX cleanup removes selected
+application metadata, but users should still review generated content and
+metadata before sharing a file.

@@ -155,6 +155,81 @@ def test_source_failure_preserves_existing_deliverable(tmp_path, monkeypatch):
     assert output.read_bytes() == b"last known good"
 
 
+def test_verification_failure_after_rendering_leaves_deliverables_byte_identical(
+    tmp_path, monkeypatch, capsys
+):
+    """The transactional promise, tested where it is hardest to keep.
+
+    A source-lint failure returns before anything is rendered. This failure
+    happens after every artifact exists, in the temporary directory, which is
+    the branch that has to refuse to install them.
+    """
+    monkeypatch.chdir(tmp_path)
+    assert main(["new", "resume"]) == 0
+    assert main(["render"]) == 0
+    renders = tmp_path / "renders"
+    before = {path.name: path.read_bytes() for path in sorted(renders.iterdir())}
+    assert "Resume.pdf" in before
+
+    (tmp_path / "pressume.toml").write_text(
+        '[[documents]]\nfile = "Resume.md"\npages = 9\n', encoding="utf-8"
+    )
+    capsys.readouterr()
+    assert main(["render"]) == 1
+    assert "left unchanged" in capsys.readouterr().err
+    after = {path.name: path.read_bytes() for path in sorted(renders.iterdir())}
+    assert after == before
+
+
+def test_a_source_that_is_not_utf8_is_reported_as_such(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Resume.md").write_bytes(b"# JANE DOE\n\n\xff\xfe not text\n")
+    assert main(["lint", "--json"]) == 1
+    results = json.loads(capsys.readouterr().out)["results"]
+    assert [item for item in results if item["check"] == "input is UTF-8"]
+
+
+def test_an_unreadable_source_is_reported_without_a_traceback(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    assert main(["new", "resume"]) == 0
+
+    def refuse(*_args, **_kwargs):
+        raise PermissionError("permission denied")
+
+    monkeypatch.setattr("pathlib.Path.read_text", refuse)
+    capsys.readouterr()
+    assert main(["lint", "--json"]) == 1
+    results = json.loads(capsys.readouterr().out)["results"]
+    unreadable = [item for item in results if item["check"] == "input readable"]
+    assert unreadable and "permission denied" in unreadable[0]["detail"]
+
+
+def test_a_full_render_and_verification_opens_no_network_connection(tmp_path, monkeypatch, capsys):
+    """The privacy claim, enforced rather than asserted.
+
+    The guard replaces the socket constructors this process would have to call
+    to reach a network, then runs the documented quick start. Pandoc and Typst
+    are separate processes, so it cannot see inside them; what it proves is
+    that pressume's own code, and every library it calls in-process to render,
+    reopen, and check the files, never opens a connection.
+    """
+    import socket
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("pressume attempted a network connection")
+
+    monkeypatch.chdir(tmp_path)
+    assert main(["new", "resume"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(socket, "socket", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse)
+
+    assert main(["render", "--formats", "pdf,txt,docx", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["summary"]["failed"] == 0
+    assert main(["check", "--formats", "pdf,txt,docx", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["summary"]["failed"] == 0
+
+
 def test_txt_only_project_renders_and_checks_without_pdf(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "pressume.toml").write_text(

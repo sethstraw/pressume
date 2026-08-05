@@ -1,138 +1,158 @@
 # pressume
 
-Render polished, verified resumes and CVs from portable Markdown.
+Turn a Markdown resume or CV into a PDF, plain-text file, or Word document, then
+check the files that were actually created.
 
-![Resume template rendered with the default modern theme](docs/resume-example.png)
+![Resume rendered with the default modern theme](docs/resume-example.png)
 
-pressume turns plain Markdown into a single-column PDF, an ATS-friendly text
-companion, and, when requested, a styled Word document. It then reopens what it
-created and verifies the details document conversion is most likely to damage:
-text order, contact details, headings, dates, protected wording, page targets,
-metadata, language tags, links, and accessible PDF structure.
+## Why I made it
 
-The verifier measures output structure and extracted text. It cannot certify
-the undocumented behavior of every applicant-tracking system or predict how an
-employer ranks a resume.
+I keep my full career history in Markdown because it is portable, searchable,
+and easy to review. I wanted the same source file to produce a clean resume, a
+longer CV, and the plain text that hiring systems extract, without maintaining a
+separate Word document by hand.
 
-## Install
+The conversion step was only half the problem. A PDF can look fine while its
+text extracts in the wrong order, a link can stop working, a title can change,
+or a page can overflow. pressume renders the document and then reopens the PDF,
+TXT, or DOCX to check the things it knows how to test.
 
-pressume is GitHub-distributed and does not require PyPI. [uv](https://docs.astral.sh/uv/)
-installs the command in an isolated environment, which is the supported way to
-use it with Homebrew's managed Python:
+I built this for my own job search. My background is pharmacy, clinical
+informatics, biomedical data, and knowledge systems, not professional software
+engineering. Claude and ChatGPT were used extensively to help write and revise
+the code, tests, and documentation. I set the requirements, reviewed the
+behavior, and tested real outputs, but I do not claim that every line was
+written by hand or that automated tests make the project infallible. That is
+worth saying plainly in a public repository.
+
+## Quick start
+
+Install with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv tool install git+https://github.com/sethstraw/pressume.git
 ```
 
-For a local clone, including before the repository is hosted, use:
+If the command is not on your `PATH`, run `uv tool update-shell` once. Then:
 
 ```bash
-uv tool install --force --editable ~/Developer/pressume
-```
-
-Run `uv tool update-shell` once if `pressume` is not yet on your `PATH`.
-Pandoc, Typst, two independent PDF text extractors, the layout-geometry
-parser, Word support, and all three curated typefaces ship with the tool; a
-document project does not need its own renderer or fonts, and every dependency
-carries an MIT-compatible license.
-
-## Quick start
-
-```bash
-mkdir my-resume && cd my-resume
+mkdir my-resume
+cd my-resume
 pressume new resume
 pressume preview Resume.md --open
 ```
 
-Edit `Resume.md`, then create verified deliverables:
+Edit `Resume.md` and create the final files:
 
 ```bash
 pressume render
 ```
 
-The default source is the current directory and the default destination is
-`./renders`. Point either location somewhere else for one invocation:
+Without a configuration file, pressume reads Markdown files from the current
+directory, writes to `./renders`, and creates PDF and TXT output.
 
-```bash
-pressume render \
-  --source ~/Documents/resumes \
-  --output ~/Desktop/applications
-```
+## What it does
 
-Configuration is optional. Without it, pressume discovers Markdown files in
-the current directory and derives each candidate's name, contact details, and
-section order from the document itself.
+- Renders Markdown through Pandoc and Typst.
+- Creates PDF and TXT by default, with DOCX available when requested.
+- Provides three bundled themes and three spacing densities.
+- Validates the Markdown before rendering.
+- Checks page targets, extracted text, exact wording, links, metadata,
+  accessibility structure, and important layout relationships in the PDF.
+- Reopens TXT and DOCX output and checks their content and structure.
+- Builds a group of documents in a temporary location before replacing existing
+  output, so one failed document does not leave a partly updated set.
+- Keeps a manifest of generated files so cleanup can distinguish its own output
+  from files it did not create.
+
+pressume does not score a resume, tailor its content, submit applications, or
+claim compatibility with every applicant-tracking system. Its checks cover
+specific, observable properties. You should still read the finished document
+before sending it.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `pressume new resume` | Create a conforming resume template. |
-| `pressume new cv` | Create a longer-form CV template. |
-| `pressume preview` | Render locally, optionally open the PDF and watch for edits. |
+| `pressume new resume` | Create a starter resume. |
+| `pressume new cv` | Create a starter CV. |
+| `pressume preview` | Render a local preview, optionally open it or watch for changes. |
 | `pressume lint` | Validate Markdown without rendering. |
-| `pressume render` | Validate, render, independently verify, and commit outputs. |
-| `pressume check` | Recheck existing deliverables without rendering. |
-| `pressume inspect` | Report advisory density, readability, and page-balance findings. |
-| `pressume list` | Show selected sources, output names, formats, profiles, and page targets. |
-| `pressume clean` | Preview stale tracked outputs; add `--apply` to remove only those files. |
-| `pressume init` | Create a documented optional configuration. |
-| `pressume refdoc` | Generate a Word reference document from the selected theme. |
-| `pressume doctor` | Show versions, paths, theme, extractors, and project health. |
+| `pressume render` | Validate, render, verify, and replace the requested output files. |
+| `pressume check` | Verify existing output without rendering again. |
+| `pressume inspect` | Report advisory readability and page-balance findings. |
+| `pressume list` | Show which sources and output files are selected. |
+| `pressume clean` | Preview stale generated files; add `--apply` to remove them. |
+| `pressume init` | Create a documented `pressume.toml`. |
+| `pressume refdoc` | Generate the DOCX style reference for the current theme. |
+| `pressume doctor` | Report installation and project diagnostics. |
 
-Run `pressume COMMAND --help` for command-specific options. Document commands
-accept individual filenames and `--json` for automation:
+Run `pressume COMMAND --help` for the full options. Document commands support
+`--json` for scripts.
 
 ```bash
 pressume render Resume.md --formats pdf
 pressume inspect Resume.md --json
+pressume render --source ~/Documents/resumes --output ~/Desktop/applications
 ```
 
-## Design system
+## Markdown format
 
-The default `modern` theme uses Source Sans 3 with a restrained navy accent,
-clear section hierarchy, compact contact metadata, readable role transitions,
-and visually distinct publication blocks. Two additional coordinated themes
-ship with the package:
+The bundled templates are the easiest place to start. The standard resume
+format expects:
 
-- `technical`: IBM Plex Sans with a slightly tighter engineering-oriented feel;
-- `traditional`: Source Serif 4 for academic and conservative settings.
+- one H1 on the first line for the candidate's name;
+- contact information immediately after the name, including an email address;
+- H2 section headings in a conventional order;
+- H3 headings for roles inside experience sections;
+- skills written as `**Label:** content`;
+- dates written consistently, normally `January 2022 to March 2025`;
+- no tables, HTML, images, code blocks, blockquotes, or footnotes under the
+  standard policy.
 
-Preview a theme or spacing density without changing configuration:
+`pressume lint` reports the rule and source line when the document does not
+match the configured format. Academic, international, and minimal policies are
+available for documents that need a different contract.
+
+## Themes and output
+
+The bundled themes are:
+
+- `modern`: Source Sans 3 with a restrained navy accent;
+- `technical`: IBM Plex Sans with a slightly tighter layout;
+- `traditional`: Source Serif 4 for a more conventional or academic document.
+
+Preview a theme and spacing density without changing configuration:
 
 ```bash
-pressume preview Resume.md --theme technical --density spacious --open
+pressume preview Resume.md --theme traditional --density spacious --open
 ```
 
-`compact`, `balanced`, and `spacious` adjust the design as a system instead of
-changing isolated margins or font sizes. Explicit font, size, margin, accent,
-paper, language, and region overrides remain available when a project needs
-them.
+The supported densities are `compact`, `balanced`, and `spacious`. Font, size,
+margin, accent color, language, and region can also be set in configuration.
 
-## Safe rendering
+Paper is `us-letter` or `a4`. Both are set on the PDF and on the Word file, so
+the two agree; a size the Word file cannot be given is rejected rather than
+quietly downgraded. The PDF standard is `ua-1`, which tags the file for
+accessible reading order, or `default` if a portal rejects a tagged PDF. PDF/A
+is not offered: every PDF/A level requires a document date, and pressume writes
+no date so the same source always produces the same file.
 
-A verified render is transactional:
-
-1. All selected sources pass the configured document contract.
-2. Every requested artifact is built in a temporary directory.
-3. PDF, TXT, and DOCX files are reopened and checked independently.
-4. Existing outputs are replaced only after the complete selection passes.
-5. If the final file or manifest update fails, every prior artifact is restored.
-
-The output manifest remembers generated filenames so a later rename or format
-change can be cleaned safely. `pressume clean` is a preview; only
-`pressume clean --apply` removes files, and it never deletes untracked work.
+`[paths].fonts` adds font directories. They are searched before the fonts that
+ship with pressume, so a font of your own with a bundled family's name is used
+instead of the bundled one. Without that setting, rendering uses only the
+bundled fonts and does not depend on what is installed on the machine.
 
 ## Configuration
 
-Run `pressume init` for a fully commented starter file. The configuration is a
-strict overlay: omitted values keep sensible defaults, while unknown keys and
-wrong types fail with their exact TOML path.
+Configuration is optional. Run `pressume init` to create a commented starter
+file. Unknown settings and invalid values fail visibly rather than being
+ignored.
 
 ```toml
 [paths]
-source_dir = "documents"
-output_dir = "build"
+source_dir = "."
+output_dir = "renders"
 
 [output]
 formats = ["pdf", "txt"]
@@ -143,128 +163,85 @@ density = "balanced"
 paper = "us-letter"
 language = "en"
 region = "US"
-pdf_standard = "ua-1"
 
 [[documents]]
 file = "Resume.md"
-min_pages = 1
-max_pages = 2
+pages = 2
 output_name = "Jane_Doe_Resume"
-title = "Jane Doe - Data Architect Resume"
-author = "Jane Doe"
-description = "Resume for senior data architecture roles"
-keywords = ["data architecture", "healthcare"]
-
-[[documents]]
-file = "Academic-CV.md"
-profile = "academic"
-formats = ["pdf", "docx"]
-required_strings = ["ORCID: 0000-0000-0000-0000"]
-forbidden_strings = ["DRAFT"]
-
-[document]
-policy = "standard"
-warning_rules = []
-disabled_rules = []
 
 [checks]
-ascii_only = false
-forbid_smart_punctuation = false
-date_style = "long"
+required_strings = ["jane@example.com"]
 protected_strings = ["Senior Clinical Data Architect"]
+forbidden_strings = ["DRAFT"]
 ```
 
-### Paths, formats, and filenames
+`required_strings` must appear. `forbidden_strings` must not appear. A
+`protected_strings` value is conditional: if its first word appears, the full
+configured phrase must appear. This is useful for official titles that must not
+be shortened but do not belong in every version of a resume.
 
-Relative configuration paths resolve from `pressume.toml`; command-line paths
-resolve from the current directory and take precedence. Supported formats are
-`pdf`, `txt`, and `docx`. Project formats can be overridden per document or for
-one command. `output_name` changes a deliverable without renaming its source.
+An exact `pages` target can be replaced with `min_pages` and `max_pages`.
+Formats, metadata, and exact-string checks can be set for individual documents.
+Named profiles can give a resume and a full CV different section rules while
+keeping them in the same folder.
 
-Use an exact `pages` target when pagination is part of the document contract,
-or `min_pages` and `max_pages` when several lengths are acceptable.
+## What is checked
 
-### Policies and profiles
+For PDF output, pressume checks the requested page count or range, compares text
+from two independent extractors, and checks character policy, required and
+protected wording, contact details, section order, dates, metadata, document
+language, hyperlink annotations, tagged accessibility structure, and spacing
+after important headings.
 
-The default contract favors a conventional one-column resume. Built-in
-`standard`, `academic`, `international`, and `minimal` policies tune common
-expectations. A rule can be demoted to an advisory with `warning_rules` or
-disabled explicitly when it does not fit the project.
+For TXT output, it checks the extracted text and exact-string rules. For DOCX,
+it reopens the OOXML package and checks linear structure, text order, links, and
+selected metadata. DOCX pagination is not certified because Word-compatible
+applications do not all paginate identically.
 
-Named profiles can further override section vocabulary, required sections,
-labeled or dated sections, citation fields, heading depth, and contact-block
-placement. Validation rejects contradictory profiles and colliding filenames.
+`pressume inspect` is advisory. It points out things such as long bullets,
+repeated openings, crowded pages, stranded headings, and sparse endings, but it
+does not block an otherwise valid document.
 
-### Exact wording and international content
+## Privacy and safety
 
-- `required_strings` must always appear exactly.
-- `forbidden_strings` must not appear.
-- `protected_strings` require the complete configured phrase when its first
-  word appears, which protects official titles without forcing every title into
-  every tailored resume.
+Rendering, checking, watching, and cleanup operate on local files and make no
+network requests. A test enforces this: it blocks the socket calls this process
+would have to make, then renders and verifies a document. Pandoc and Typst run
+as separate processes, so that test cannot see inside them; what it proves is
+that pressume's own code and every library it calls to render, reopen, and
+check a file never open a connection. Opening a preview uses the system's local
+viewer. Generated documents may contain author, title, description, keywords,
+and language metadata, so review both content and metadata before sharing them.
 
-Character policy, smart punctuation, date style, paper, document language, and
-region are independent. This allows accented names and international addresses
-without weakening unrelated checks. For writing systems outside the bundled
-font coverage, select an installed font or add font directories under `[paths]`.
+`pressume clean` only removes files recorded in its output manifest, and only
+when `--apply` is supplied. A file you put in the output folder yourself
+survives it. A failed render leaves the existing files untouched, including
+when the document renders successfully and then fails verification.
 
-## Delivery checks
+## Using it with tailorcv
 
-PDF verification includes page targets, two independent text extractors
-(pypdf always, cross-checked against Poppler when installed or the bundled
-pdfminer.six otherwise), character policy, exact strings, contact placement,
-section order, date style, metadata, language, real hyperlink annotations,
-PDF/UA structure, and geometric clearance after names, section headings, and
-organization headings. TXT uses the
-same text and exact-string policy. DOCX is reopened as OOXML and checked for
-linear structure, ATS text order, metadata privacy, and embedded links; its
-pagination is intentionally not certified because Word-compatible applications
-paginate independently.
-
-Bare email addresses, phone numbers, LinkedIn/GitHub/ORCID profiles, and DOI
-identifiers become clickable without changing their visible text. Metadata is
-derived by default and can be overridden per document.
-
-`pressume inspect` is intentionally advisory. It highlights long bullets,
-dense front matter, repeated openers, crowded pages, stranded headings, and
-sparse endings without blocking an otherwise valid deliverable.
-
-## Exit codes
-
-| Code | Meaning |
-| --- | --- |
-| `0` | Command completed and all required checks passed. |
-| `1` | Verification or a safe refusal failed. |
-| `2` | Arguments or configuration were invalid. |
-| `3` | Rendering or file-system work failed. |
-| `130` | Command was interrupted. |
-
-Reports go to stdout and progress/errors go to stderr. JSON mode keeps stdout
-machine-readable.
+[tailorcv](https://github.com/sethstraw/tailorcv) is a separate project that
+uses language models to select and rewrite evidence from a master CV for a job
+description. It produces Markdown; pressume can render that Markdown. Neither
+application imports or requires the other.
 
 ## Development
 
 ```bash
 git clone https://github.com/sethstraw/pressume.git
 cd pressume
-uv sync --all-extras --dev
-uv run ruff format --check src tests
-uv run ruff check src tests
+uv sync --locked --all-groups
+uv run ruff format --check src tests scripts
+uv run ruff check src tests scripts
 uv run mypy
 uv run pytest --cov --cov-report=term-missing
 ```
 
-The code favors explicit types, small composable functions, and PEP 257
-Google-style docstrings. See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete
-quality and documentation standards.
-
-## Privacy and network behavior
-
-pressume processes only the local files and paths you select. Rendering,
-checking, preview watching, and cleanup make no network requests and do not
-upload resume content. Opening a generated preview uses the local system viewer.
+Contributions, bug reports, and documentation corrections are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
-[MIT](LICENSE). Source Sans 3, IBM Plex Sans, and Source Serif 4 are distributed
-under their bundled SIL Open Font Licenses.
+pressume is released under the [MIT License](LICENSE). Bundled fonts retain
+their SIL Open Font Licenses in the package.

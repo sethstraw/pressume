@@ -1,8 +1,22 @@
 """Configuration validation tests."""
 
+import dataclasses
+
 import pytest
 
-from pressume.config import ConfigError, load_config
+from pressume.config import (
+    CHECK_SETTINGS,
+    DOCUMENT_SETTINGS,
+    PATH_SETTINGS,
+    RULE_KEYS,
+    STYLE_SETTINGS,
+    Checks,
+    Config,
+    ConfigError,
+    Document,
+    Style,
+    load_config,
+)
 
 VALID = """
 [paths]
@@ -181,3 +195,110 @@ def test_document_output_stems_must_be_unique(tmp_path):
                 '[[documents]]\nfile = "one/Resume.md"\n[[documents]]\nfile = "two/Resume.md"\n',
             )
         )
+
+
+@pytest.mark.parametrize(
+    ("settings", "shape"),
+    [
+        (PATH_SETTINGS, Config),
+        (STYLE_SETTINGS, Style),
+        (DOCUMENT_SETTINGS, Document),
+        (CHECK_SETTINGS, Checks),
+    ],
+)
+def test_every_setting_writes_to_a_real_field(settings, shape):
+    """The setting tables and the dataclasses name the same things.
+
+    The tables are the only description of a configuration key. If one names
+    an attribute the dataclass does not have, a valid file would silently
+    create a new attribute nothing reads.
+    """
+    declared = {item.name for item in dataclasses.fields(shape)}
+    assert {setting.attribute for setting in settings.values()} <= declared
+
+
+def test_starter_configuration_parses_and_documents_every_key(tmp_path):
+    """`pressume init` writes a file that loads, and mentions every setting.
+
+    The starter is a third statement of the configuration vocabulary. Both
+    directions matter: a key it forgets is undiscoverable, and a key it invents
+    would be rejected the moment someone uncomments it.
+    """
+    from pressume.cli import STARTER_CONFIG
+
+    config = load_config(write(tmp_path, STARTER_CONFIG))
+    assert config.documents[0].file == "Resume.md"
+
+    mentioned = {
+        line.lstrip("# ").split("=", 1)[0].strip()
+        for line in STARTER_CONFIG.splitlines()
+        if "=" in line and not line.lstrip("# ").startswith("[")
+    }
+    documented = (
+        set(PATH_SETTINGS)
+        | set(STYLE_SETTINGS)
+        | set(DOCUMENT_SETTINGS)
+        | set(CHECK_SETTINGS)
+        | set(RULE_KEYS)
+        | {"formats"}
+    )
+    assert documented - mentioned == set()
+    assert mentioned - documented == set()
+
+
+def test_paper_is_limited_to_sizes_the_word_file_can_also_use(tmp_path):
+    """A paper the DOCX pass cannot set is rejected, not silently downgraded."""
+    with pytest.raises(ConfigError, match=r"style.paper: 'a5' must be one of"):
+        load_config(write(tmp_path, '[style]\npaper = "a5"\n'))
+    config = load_config(write(tmp_path, '[style]\npaper = "A4"\n'))
+    assert config.style.paper == "a4"
+
+
+def test_font_directories_resolve_against_the_configuration_file(tmp_path):
+    config = load_config(write(tmp_path, '[paths]\nfonts = ["brand-fonts", "more"]\n'))
+    assert [config.resolve(path) for path in config.font_dirs] == [
+        (tmp_path / "brand-fonts").resolve(),
+        (tmp_path / "more").resolve(),
+    ]
+
+
+def test_out_of_range_and_malformed_values_name_the_key_and_the_expectation(tmp_path):
+    bad = """
+[style]
+size_pt = 40
+margin_in = 9
+accent = "blue"
+language = "english"
+region = "Canada"
+
+[[documents]]
+file = "Resume.md"
+pages = 0
+"""
+    with pytest.raises(ConfigError) as error:
+        load_config(write(tmp_path, bad))
+    text = "\n".join(error.value.problems)
+    assert "style.size_pt: 40 is outside the sensible range 6-14" in text
+    assert "style.margin_in: 9 is outside the sensible range 0.3-1.5" in text
+    assert "style.accent: 'blue' is not a #RRGGBB hex color" in text
+    assert "style.language: 'english' is not a two- or three-letter ISO 639" in text
+    assert "style.region: 'Canada' is not a two-letter ISO 3166-1 region code" in text
+    assert "documents[0].pages: 0 is not a positive integer page target" in text
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("[style]\ntheme = 4\n", "style.theme: expected str, got int"),
+        ('[style]\nfont = " "\n', "style.font: must not be empty"),
+        ('[checks]\nascii_only = "yes"\n', "checks.ascii_only: expected bool, got str"),
+        ('[checks]\nsection_order = "Summary"\n', "checks.section_order: expected list, got str"),
+        ('[checks]\nsection_order = [""]\n', "every entry must be a non-empty string"),
+        ('[document]\nmax_heading_level = "3"\n', "document.max_heading_level: expected int"),
+        ('[style]\nsize_pt = "10"\n', "style.size_pt: expected number, got str"),
+    ],
+)
+def test_wrong_types_are_named_by_key_and_expected_type(tmp_path, text, expected):
+    with pytest.raises(ConfigError) as error:
+        load_config(write(tmp_path, text))
+    assert expected in "\n".join(error.value.problems)

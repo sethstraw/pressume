@@ -20,7 +20,7 @@ from pdfminer.high_level import extract_text as pdfminer_extract_text
 from pdfminer.layout import LTTextContainer, LTTextLine
 from pypdf import PdfReader
 
-from pressume.checks.report import CheckResult, Severity, grader
+from pressume.checks.report import CheckResult, Severity
 from pressume.checks.textrules import (
     describe_character,
     smart_punctuation_found,
@@ -54,18 +54,20 @@ def check_page_target(
     maximum: int | None = None,
 ) -> list[CheckResult]:
     """Compare a PDF's page count with its exact target or permitted range."""
-    verdict = grader(name, "pdf: page count")
+    check = "pdf: page count"
     pages = count_pages(pdf_path)
     if target is minimum is maximum is None:
-        return [verdict(Severity.WARN, f"{pages} page(s), no target set")]
+        return [CheckResult(name, check, Severity.WARN, f"{pages} page(s), no target set")]
     low, high = (target, target) if target is not None else (minimum, maximum)
     if (low is None or pages >= low) and (high is None or pages <= high):
         bounds = "" if target is not None else f", range {minimum or 1}-{maximum or 'unbounded'}"
-        return [verdict(Severity.PASS, f"{pages} page(s)" + bounds)]
+        return [CheckResult(name, check, Severity.PASS, f"{pages} page(s)" + bounds)]
     expected = (
         str(target) if target is not None else f"range {minimum or 1}-{maximum or 'unbounded'}"
     )
-    return [verdict(Severity.FAIL, f"expected {expected} page(s), rendered {pages}")]
+    return [
+        CheckResult(name, check, Severity.FAIL, f"expected {expected} page(s), rendered {pages}")
+    ]
 
 
 def check_pdf_delivery(
@@ -275,31 +277,36 @@ def check_text_hygiene(name: str, surface: str, text: str, checks: Checks) -> li
     for enabled, label, offenders in character_rules:
         if not enabled:
             continue
-        verdict = grader(name, f"{surface}: {label}")
+        check = f"{surface}: {label}"
         if offenders:
             described = ", ".join(describe_character(c) for c in offenders)
-            results.append(verdict(Severity.FAIL, f"Found {described}"))
+            results.append(CheckResult(name, check, Severity.FAIL, f"Found {described}"))
         else:
-            results.append(verdict(Severity.PASS))
+            results.append(CheckResult(name, check, Severity.PASS))
 
     for required in checks.required_strings:
-        verdict = grader(name, f"{surface}: exact string")
+        check = f"{surface}: exact string"
         if required in text:
-            results.append(verdict(Severity.PASS, repr(required)))
+            results.append(CheckResult(name, check, Severity.PASS, repr(required)))
         else:
-            results.append(verdict(Severity.FAIL, f"required text not found: {required!r}"))
+            results.append(
+                CheckResult(name, check, Severity.FAIL, f"required text not found: {required!r}")
+            )
 
     for protected in checks.protected_strings:
         # Protected strings bind only when their topic appears: the first word
         # present without the full phrase means the exact value was mangled.
-        verdict = grader(name, f"{surface}: protected string")
+        check = f"{surface}: protected string"
         probe = protected.split(maxsplit=1)[0]
         if protected in text:
-            results.append(verdict(Severity.PASS, repr(protected)))
+            results.append(CheckResult(name, check, Severity.PASS, repr(protected)))
         elif probe and probe in text:
             results.append(
-                verdict(
-                    Severity.FAIL, f"text approaches but does not exactly contain {protected!r}"
+                CheckResult(
+                    name,
+                    check,
+                    Severity.FAIL,
+                    f"text approaches but does not exactly contain {protected!r}",
                 )
             )
 

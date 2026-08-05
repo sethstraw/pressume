@@ -1,0 +1,140 @@
+# pressume text-geometry baseline. Data, not code: read the diff.
+#
+# Regenerate every baseline with:
+#     uv run python tests/regenerate_geometry_baselines.py
+# Regenerate only when a layout change was intended and you can say what it
+# was. A surprise here is a report, not a file to overwrite.
+#
+# One section per configuration. Coordinates are PDF points from the page's
+# bottom-left corner, rounded to 0.1 pt. Columns are:
+#     page top bottom left right size font text
+# `region` is left bottom right top of the region Typst was given. Text is
+# escaped to ASCII and cut to 60 characters; the numbers are the
+# measurement.
+
+[modern us-letter]
+paper 612.0 792.0
+region 39.6 39.6 572.4 752.4
+pages 1
+1 752.7 728.7 39.6 142.8 24.1 SourceSans3-Semibold JANE DOE
+1 717.7 708.9 39.6 233.5 8.8 SourceSans3-Regular Toronto, Ontario | jane@example.com | 555-555-0142
+1 698.2 685.9 39.6 378.4 12.2 SourceSans3-Semibold DATA PLATFORM ARCHITECTURE AND REGULATED DELIVERY
+1 676.6 666.6 39.6 536.8 10.0 SourceSans3-Regular Every heading in this fixture is long on purpose. A heading
+1 663.6 653.6 39.6 429.8 10.0 SourceSans3-Regular document exists to make that failure show up in the geometry
+1 643.3 631.0 39.6 284.7 12.2 SourceSans3-Semibold SELECTED WORK AND LONG DESTINATIONS
+1 621.7 611.7 39.6 506.1 10.0 SourceSans3-Regular \u2022 Reference implementation at https://example.com/docum
+1 610.1 600.1 39.6 350.1 10.0 SourceSans3-Regular \u2022 Method note published as doi:10.1000/example.longform
+1 598.5 588.5 39.6 373.2 10.0 SourceSans3-Regular \u2022 Package registry entry at https://example.com/package
+1 582.4 572.1 39.6 311.0 10.3 SourceSans3-Semibold Example Health Systems Data Platform and Integration Group
+1 567.6 558.2 39.6 382.4 9.4 SourceSans3-Bold Senior Data Architect, Clinical Integration | January 2021 t
+1 557.4 547.4 39.6 570.8 10.0 SourceSans3-Regular \u2022 Long identifiers such as ExampleClinicalIngestService
+1 545.8 535.8 39.6 318.9 10.0 SourceSans3-Regular \u2022 The bullet text wraps normally; only the identifier i
+1 525.4 513.2 39.6 105.8 12.2 SourceSans3-Semibold EDUCATION
+1 503.9 494.3 39.6 307.0 9.6 SourceSans3-Bold Bachelor of Science, Computer Science, Example University, 2
+
+[modern a4]
+paper 595.3 841.9
+region 39.6 39.6 555.7 802.3
+pages 1
+1 802.6 778.5 39.6 142.8 24.1 SourceSans3-Semibold JANE DOE
+1 767.6 758.8 39.6 233.5 8.8 SourceSans3-Regular Toronto, Ontario | jane@example.com | 555-555-0142
+1 748.1 735.8 39.6 378.4 12.2 SourceSans3-Semibold DATA PLATFORM ARCHITECTURE AND REGULATED DELIVERY
+1 726.5 716.5 39.6 536.8 10.0 SourceSans3-Regular Every heading in this fixture is long on purpose. A heading
+1 713.5 703.5 39.6 429.8 10.0 SourceSans3-Regular document exists to make that failure show up in the geometry
+1 693.1 680.9 39.6 284.7 12.2 SourceSans3-Semibold SELECTED WORK AND LONG DESTINATIONS
+1 671.6 661.6 39.6 506.1 10.0 SourceSans3-Regular \u2022 Reference implementation at https://example.com/docum
+1 660.0 650.0 39.6 350.1 10.0 SourceSans3-Regular \u2022 Method note published as doi:10.1000/example.longform
+1 648.4 638.4 39.6 373.2 10.0 SourceSans3-Regular \u2022 Package registry entry at https://example.com/package
+1 632.3 622.0 39.6 311.0 10.3 SourceSans3-Semibold Example Health Systems Data Platform and Integration Group
+1 617.5 608.1 39.6 382.4 9.4 SourceSans3-Bold Senior Data Architect, Clinical Integration | January 2021 t
+1 607.3 597.3 39.6 538.6 10.0 SourceSans3-Regular \u2022 Long identifiers such as ExampleClinicalIngestService
+1 594.3 584.3 48.2 80.4 10.0 SourceSans3-Regular margin.
+1 582.7 572.7 39.6 318.9 10.0 SourceSans3-Regular \u2022 The bullet text wraps normally; only the identifier i
+1 562.3 550.1 39.6 105.8 12.2 SourceSans3-Semibold EDUCATION
+1 540.8 531.2 39.6 307.0 9.6 SourceSans3-Bold Bachelor of Science, Computer Science, Example University, 2
+
+[technical us-letter]
+paper 612.0 792.0
+region 39.6 39.6 572.4 752.4
+pages 1
+1 754.3 730.8 39.6 152.7 23.5 IBMPlexSans-Bold JANE DOE
+1 717.8 709.0 39.6 255.0 8.8 IBMPlexSans Toronto, Ontario | jane@example.com | 555-555-0142
+1 698.1 685.9 39.6 421.6 12.2 IBMPlexSans-Bold DATA PLATFORM ARCHITECTURE AND REGULATED DELIVERY
+1 676.0 666.0 39.6 555.9 10.0 IBMPlexSans Every heading in this fixture is long on purpose. A heading
+1 662.6 652.6 39.6 478.4 10.0 IBMPlexSans this document exists to make that failure show up in the geo
+1 642.0 629.8 39.6 315.0 12.2 IBMPlexSans-Bold SELECTED WORK AND LONG DESTINATIONS
+1 619.8 609.8 39.6 540.9 10.0 IBMPlexSans \u2022 Reference implementation at https://example.com/docum
+1 607.9 597.9 39.6 380.6 10.0 IBMPlexSans \u2022 Method note published as doi:10.1000/example.longform
+1 595.9 585.9 39.6 400.3 10.0 IBMPlexSans \u2022 Package registry entry at https://example.com/package
+1 579.4 569.1 39.6 340.0 10.3 IBMPlexSans-Bold Example Health Systems Data Platform and Integration Group
+1 564.2 554.8 39.6 411.5 9.4 IBMPlexSans-Bold Senior Data Architect, Clinical Integration | January 2021 t
+1 553.6 543.6 39.6 554.8 10.0 IBMPlexSans \u2022 Long identifiers such as ExampleClinicalIngestService
+1 540.3 530.3 49.2 105.8 10.0 IBMPlexSans right margin.
+1 528.3 518.3 39.6 340.1 10.0 IBMPlexSans \u2022 The bullet text wraps normally; only the identifier i
+1 507.7 495.4 39.6 113.9 12.2 IBMPlexSans-Bold EDUCATION
+1 485.5 475.9 39.6 330.4 9.6 IBMPlexSans-Bold Bachelor of Science, Computer Science, Example University, 2
+
+[technical a4]
+paper 595.3 841.9
+region 39.6 39.6 555.7 802.3
+pages 1
+1 804.2 780.7 39.6 152.7 23.5 IBMPlexSans-Bold JANE DOE
+1 767.7 758.9 39.6 255.0 8.8 IBMPlexSans Toronto, Ontario | jane@example.com | 555-555-0142
+1 748.0 735.8 39.6 421.6 12.2 IBMPlexSans-Bold DATA PLATFORM ARCHITECTURE AND REGULATED DELIVERY
+1 725.9 715.9 39.6 555.9 10.0 IBMPlexSans Every heading in this fixture is long on purpose. A heading
+1 712.5 702.5 39.6 478.4 10.0 IBMPlexSans this document exists to make that failure show up in the geo
+1 691.9 679.7 39.6 315.0 12.2 IBMPlexSans-Bold SELECTED WORK AND LONG DESTINATIONS
+1 669.7 659.7 39.6 540.9 10.0 IBMPlexSans \u2022 Reference implementation at https://example.com/docum
+1 657.7 647.7 39.6 380.6 10.0 IBMPlexSans \u2022 Method note published as doi:10.1000/example.longform
+1 645.8 635.8 39.6 400.3 10.0 IBMPlexSans \u2022 Package registry entry at https://example.com/package
+1 629.3 619.0 39.6 340.0 10.3 IBMPlexSans-Bold Example Health Systems Data Platform and Integration Group
+1 614.0 604.6 39.6 411.5 9.4 IBMPlexSans-Bold Senior Data Architect, Clinical Integration | January 2021 t
+1 603.5 593.5 39.6 554.8 10.0 IBMPlexSans \u2022 Long identifiers such as ExampleClinicalIngestService
+1 590.2 580.2 49.2 105.8 10.0 IBMPlexSans right margin.
+1 578.2 568.2 39.6 340.1 10.0 IBMPlexSans \u2022 The bullet text wraps normally; only the identifier i
+1 557.6 545.3 39.6 113.9 12.2 IBMPlexSans-Bold EDUCATION
+1 535.4 525.8 39.6 330.4 9.6 IBMPlexSans-Bold Bachelor of Science, Computer Science, Example University, 2
+
+[traditional us-letter]
+paper 612.0 792.0
+region 36.0 33.1 576.0 758.9
+pages 1
+1 758.8 733.6 36.0 156.4 25.2 SourceSerif4-Bold JANE DOE
+1 723.0 713.0 36.0 281.8 10.0 SourceSerif4-Regular Toronto, Ontario | jane@example.com | 555-555-0142
+1 708.5 695.9 36.0 450.9 12.6 SourceSerif4-Bold DATA PLATFORM ARCHITECTURE AND REGULATED DELIVERY
+1 687.5 677.5 36.0 570.2 10.0 SourceSerif4-Regular Every heading in this fixture is long on purpose. A heading
+1 676.4 666.4 36.0 522.5 10.0 SourceSerif4-Regular and this document exists to make that failure show up in the
+1 661.9 649.3 36.0 329.0 12.6 SourceSerif4-Bold SELECTED WORK AND LONG DESTINATIONS
+1 640.9 630.9 36.0 561.5 10.0 SourceSerif4-Regular \u2022 Reference implementation at https://example.com/docum
+1 629.8 619.8 36.0 384.9 10.0 SourceSerif4-Regular \u2022 Method note published as doi:10.1000/example.longform
+1 618.7 608.7 36.0 409.9 10.0 SourceSerif4-Regular \u2022 Package registry entry at https://example.com/package
+1 604.0 593.5 36.0 353.9 10.5 SourceSerif4-Bold Example Health Systems Data Platform and Integration Group
+1 587.4 577.4 36.0 447.7 10.0 SourceSerif4-Bold Senior Data Architect, Clinical Integration | January 2021 t
+1 575.5 565.5 36.0 565.1 10.0 SourceSerif4-Regular \u2022 Long identifiers such as ExampleClinicalIngestService
+1 564.4 554.4 44.0 125.0 10.0 SourceSerif4-Regular the right margin.
+1 553.3 543.3 36.0 357.1 10.0 SourceSerif4-Regular \u2022 The bullet text wraps normally; only the identifier i
+1 538.8 526.2 36.0 115.4 12.6 SourceSerif4-Bold EDUCATION
+1 517.8 507.8 36.0 350.6 10.0 SourceSerif4-Bold Bachelor of Science, Computer Science, Example University, 2
+
+[traditional a4]
+paper 595.3 841.9
+region 36.0 33.1 559.3 808.8
+pages 1
+1 808.6 783.4 36.0 156.4 25.2 SourceSerif4-Bold JANE DOE
+1 772.9 762.9 36.0 281.8 10.0 SourceSerif4-Regular Toronto, Ontario | jane@example.com | 555-555-0142
+1 758.4 745.8 36.0 450.9 12.6 SourceSerif4-Bold DATA PLATFORM ARCHITECTURE AND REGULATED DELIVERY
+1 737.4 727.4 36.0 533.3 10.0 SourceSerif4-Regular Every heading in this fixture is long on purpose. A heading
+1 726.3 716.3 36.0 529.0 10.0 SourceSerif4-Regular failure, and this document exists to make that failure show
+1 715.2 705.2 36.0 66.3 10.0 SourceSerif4-Regular inbox.
+1 700.7 688.1 36.0 329.0 12.6 SourceSerif4-Bold SELECTED WORK AND LONG DESTINATIONS
+1 679.7 669.7 36.0 538.7 10.0 SourceSerif4-Regular \u2022 Reference implementation at https://example.com/docum
+1 668.6 658.6 44.0 66.8 10.0 SourceSerif4-Regular html
+1 657.5 647.5 36.0 384.9 10.0 SourceSerif4-Regular \u2022 Method note published as doi:10.1000/example.longform
+1 646.4 636.4 36.0 409.9 10.0 SourceSerif4-Regular \u2022 Package registry entry at https://example.com/package
+1 631.6 621.1 36.0 353.9 10.5 SourceSerif4-Bold Example Health Systems Data Platform and Integration Group
+1 615.1 605.1 36.0 447.7 10.0 SourceSerif4-Bold Senior Data Architect, Clinical Integration | January 2021 t
+1 603.2 593.2 36.0 542.9 10.0 SourceSerif4-Regular \u2022 Long identifiers such as ExampleClinicalIngestService
+1 592.1 582.1 44.0 147.3 10.0 SourceSerif4-Regular past the right margin.
+1 581.0 571.0 36.0 357.1 10.0 SourceSerif4-Regular \u2022 The bullet text wraps normally; only the identifier i
+1 566.5 553.9 36.0 115.4 12.6 SourceSerif4-Bold EDUCATION
+1 545.5 535.5 36.0 350.6 10.0 SourceSerif4-Bold Bachelor of Science, Computer Science, Example University, 2

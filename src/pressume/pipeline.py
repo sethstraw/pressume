@@ -16,10 +16,8 @@ from pressume.config import Config, ConfigError, Document, validate_formats
 from pressume.diagnostics import inspect_pdf_layout, inspect_source
 from pressume.documents import SourceDocument
 from pressume.errors import RenderError
-from pressume.formats import FORMATS
+from pressume.formats import render_artifact, verify_artifact
 from pressume.manifest import load_manifest, stale_artifacts, write_manifest
-
-__all__ = ["SourceDocument", "inspect_existing", "lint_only", "run", "verify_existing"]
 
 
 def lint_only(config: Config, names: list[str], as_json: bool = False) -> int:
@@ -106,16 +104,15 @@ def run(
             document_formats = _formats_for(config, source.settings, formats)
             checks = derive_checks(source.markdown, config.checks_for(source.settings))
             for name in document_formats:
-                output_format = FORMATS[name]
                 temporary = scratch / f"{source.stem}.{name}"
                 final = output_dir / temporary.name
-                output_format.render(source, temporary, config)
+                render_artifact(name, source, temporary, config)
                 if not temporary.is_file() or temporary.stat().st_size == 0:
                     raise RenderError(f"Renderer did not produce a usable {temporary.name}")
                 pending.append((temporary, final))
                 rendered.append(final)
                 if verify:
-                    results.extend(output_format.verify(source, temporary, checks, config))
+                    results.extend(verify_artifact(name, source, temporary, checks, config))
 
         if verify and _failed(results):
             console.print(
@@ -162,7 +159,7 @@ def verify_existing(
                     )
                 )
                 continue
-            results.extend(FORMATS[name].verify(source, artifact, checks, config))
+            results.extend(verify_artifact(name, source, artifact, checks, config))
     expected = expected_artifacts(config)
     stale = stale_artifacts(output_dir, expected)
     if stale:
@@ -274,11 +271,10 @@ def clean_outputs(config: Config, apply: bool, as_json: bool = False) -> int:
     if not stale:
         results.append(CheckResult("project", "clean", Severity.PASS, "no stale tracked output"))
     if apply and not _failed(results):
-        manifest = load_manifest(output_dir)
         stale_names = {path.name for path in stale}
-        manifest.entries = {
+        manifest = {
             source: [name for name in names if name not in stale_names]
-            for source, names in manifest.entries.items()
+            for source, names in load_manifest(output_dir).items()
             if any(name not in stale_names for name in names)
         }
         write_manifest(output_dir, manifest)
@@ -318,8 +314,8 @@ def _commit_outputs(
             # Keep earlier generated names until `clean` can compare them with
             # the current project plan. Replacing this entry would forget a
             # renamed output and make the stale file impossible to identify.
-            manifest.entries[source.settings.file] = sorted(
-                set(manifest.entries.get(source.settings.file, [])) | set(produced)
+            manifest[source.settings.file] = sorted(
+                set(manifest.get(source.settings.file, [])) | set(produced)
             )
         write_manifest(output_dir, manifest)
     except OSError as error:

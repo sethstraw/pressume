@@ -1,8 +1,10 @@
-"""Regression tests from the pre-publication review.
+"""Behaviors that broke once and must not break again.
 
-Each test here pins a behavior the review found unguarded: contract state
-leaks, date-family drift, policy presets, metadata scrubbing, and error
-classification at the configuration boundary.
+Each test pins one of them: role-block state leaking from one section into the
+next, an abbreviated month escaping the mixed-date check, an ORCID iD read as a
+telephone number, a policy preset drifting from its documented shape, Word
+revision identifiers surviving into a delivered DOCX, and a missing reference
+document being reported as a configuration mistake rather than a render crash.
 """
 
 import zipfile

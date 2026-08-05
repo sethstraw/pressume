@@ -14,9 +14,15 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
-from pressume.config import Style
+from pressume.config import PAPER_SIZES, Style
 from pressume.metadata import DocumentMetadata
-from pressume.template import CITATION_WORDS, RECORD_SECTIONS, SKILL_SECTIONS, resolve_style
+from pressume.template import (
+    CITATION_WORDS,
+    RECORD_SECTIONS,
+    SKILL_SECTIONS,
+    ResolvedStyle,
+    resolve_style,
+)
 
 # A DOCX travels to machines that do not carry the bundled typefaces, so the
 # Word deliverable substitutes widely installed system families per theme
@@ -25,69 +31,72 @@ from pressume.template import CITATION_WORDS, RECORD_SECTIONS, SKILL_SECTIONS, r
 DOCX_THEME_FONTS = {"modern": "Arial", "technical": "Arial", "traditional": "Georgia"}
 DOCX_LINE_SPACING = {"compact": 1.04, "balanced": 1.10, "spacious": 1.16}
 
+# Paragraph styles that carry body text in Pandoc's DOCX output.
+BODY_STYLES = (
+    "Normal",
+    "Body Text",
+    "First Paragraph",
+    "Compact",
+    "List Bullet",
+    "List Paragraph",
+)
+HEADING_STYLES = ("Heading 1", "Heading 2", "Heading 3")
+
 
 def docx_font(style: Style) -> str:
     """Return the font the Word deliverable should carry for ``style``."""
     return style.font or DOCX_THEME_FONTS[style.theme]
 
 
-def style_docx(path: Path, style: Style, metadata: DocumentMetadata) -> None:
-    """Make a generated DOCX visually consistent with the PDF theme."""
-    document = docx.Document(str(path))
+def apply_base_style(document: Any, style: Style) -> ResolvedStyle:
+    """Set page, font, and spacing for one DOCX and return the resolved style.
+
+    Both DOCX paths call this: the reference document Pandoc converts against
+    and the styling pass over Pandoc's output. Sharing it is what keeps a Word
+    file made either way on the same page size, font, and leading.
+    """
     resolved = resolve_style(style)
     font_name = docx_font(style)
     accent = RGBColor.from_string(resolved.accent.lstrip("#"))
-    muted = RGBColor(0x50, 0x54, 0x5A)
     ink = RGBColor(0x1A, 0x1A, 0x1A)
+    width, height = PAPER_SIZES[resolved.paper]
 
     for section in document.sections:
         margin = Inches(resolved.margin_in)
-        if resolved.paper == "a4":
-            section.page_width = Inches(8.27)
-            section.page_height = Inches(11.69)
-        else:
-            section.page_width = Inches(8.5)
-            section.page_height = Inches(11)
+        section.page_width = Inches(width)
+        section.page_height = Inches(height)
         section.top_margin = margin
         section.bottom_margin = margin
         section.left_margin = margin
         section.right_margin = margin
 
-    set_style_font(document, "Normal", font_name, resolved.size_pt, ink)
-    set_style_font(
-        document,
-        "Heading 1",
-        font_name,
-        resolved.size_pt * resolved.theme.name_scale,
-        accent,
-        bold=True,
-    )
-    set_style_font(
-        document,
-        "Heading 2",
-        font_name,
-        resolved.size_pt * resolved.theme.section_scale,
-        accent,
-        bold=True,
-    )
-    set_style_font(
-        document,
-        "Heading 3",
-        font_name,
-        resolved.size_pt * resolved.theme.role_scale,
-        ink,
-        bold=True,
-    )
-    for name in ("List Bullet", "List Paragraph", "Body Text", "First Paragraph"):
+    for name in BODY_STYLES:
         set_style_font(document, name, font_name, resolved.size_pt, ink)
+    for name, scale, color in (
+        ("Heading 1", resolved.theme.name_scale, accent),
+        ("Heading 2", resolved.theme.section_scale, accent),
+        ("Heading 3", resolved.theme.role_scale, ink),
+        ("Title", resolved.theme.name_scale, accent),
+    ):
+        set_style_font(document, name, font_name, resolved.size_pt * scale, color, bold=True)
 
     normal = document.styles["Normal"].paragraph_format
     normal.space_after = Pt(resolved.size_pt * resolved.theme.paragraph_spacing_em)
     normal.line_spacing = DOCX_LINE_SPACING[style.density]
-    for name in ("Heading 1", "Heading 2", "Heading 3"):
+    for name in HEADING_STYLES:
         paragraph = document.styles[name].paragraph_format
         paragraph.keep_with_next = True
         paragraph.keep_together = True
+    return resolved
+
+
+def style_docx(path: Path, style: Style, metadata: DocumentMetadata) -> None:
+    """Make a generated DOCX visually consistent with the PDF theme."""
+    document = docx.Document(str(path))
+    resolved = apply_base_style(document, style)
+    font_name = docx_font(style)
+    muted = RGBColor(0x50, 0x54, 0x5A)
+    ink = RGBColor(0x1A, 0x1A, 0x1A)
 
     current_section = ""
     front_paragraph = 0

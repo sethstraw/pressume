@@ -1,15 +1,13 @@
-"""Output formats as self-contained strategies.
+"""Producing and verifying one deliverable at a time.
 
-Each deliverable pairs the way to produce it with the way to verify what was
-produced. The pipeline iterates the registry without knowing any format's
-name; adding a format is one new entry here, and the registry is asserted
-against the configuration vocabulary so the two can never drift.
+Every format pairs the way to produce it with the way to reopen and check what
+was produced. The format names live once, in ``config.KNOWN_FORMATS``; a test
+renders and verifies each of them, so a name that gains configuration without
+an implementation fails the suite rather than a user's render.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 
 from pressume.checks.ats import check_ats
@@ -21,25 +19,35 @@ from pressume.checks.pdfchecks import (
     extract_pdf_text,
 )
 from pressume.checks.report import CheckResult
-from pressume.config import KNOWN_FORMATS, Checks, Config
+from pressume.config import Checks, Config
 from pressume.convert import render_docx, render_pdf, render_txt
 from pressume.documents import SourceDocument
 from pressume.errors import RenderError
 
-Renderer = Callable[[SourceDocument, Path, Config], None]
-Verifier = Callable[[SourceDocument, Path, Checks, Config], list[CheckResult]]
+
+def render_artifact(name: str, source: SourceDocument, destination: Path, config: Config) -> None:
+    """Write ``source`` to ``destination`` in the named format."""
+    if name == "pdf":
+        render_pdf(source.markdown, destination, config, source.metadata(config))
+    elif name == "docx":
+        render_docx(source.markdown, destination, config, source.metadata(config))
+    elif name == "txt":
+        render_txt(source.markdown, destination)
+    else:
+        raise RenderError(f"No renderer for format {name!r}")
 
 
-@dataclass(frozen=True)
-class OutputFormat:
-    """How one deliverable is produced and independently verified."""
-
-    render: Renderer
-    verify: Verifier
-
-
-def _render_pdf(source: SourceDocument, destination: Path, config: Config) -> None:
-    render_pdf(source.markdown, destination, config, source.metadata(config))
+def verify_artifact(
+    name: str, source: SourceDocument, artifact: Path, checks: Checks, config: Config
+) -> list[CheckResult]:
+    """Reopen ``artifact`` and return every check the named format defines."""
+    if name == "pdf":
+        return _verify_pdf(source, artifact, checks, config)
+    if name == "docx":
+        return check_docx(source.stem, artifact, checks, source.metadata(config), source.markdown)
+    if name == "txt":
+        return _verify_txt(source, artifact, checks)
+    raise RenderError(f"No verifier for format {name!r}")
 
 
 def _verify_pdf(
@@ -64,36 +72,9 @@ def _verify_pdf(
     return results
 
 
-def _render_txt(source: SourceDocument, destination: Path, config: Config) -> None:
-    render_txt(source.markdown, destination)
-
-
-def _verify_txt(
-    source: SourceDocument, artifact: Path, checks: Checks, config: Config
-) -> list[CheckResult]:
+def _verify_txt(source: SourceDocument, artifact: Path, checks: Checks) -> list[CheckResult]:
     try:
         text = artifact.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
         raise RenderError(f"Could not read generated {artifact.name}: {error}") from error
     return check_text_hygiene(source.stem, "txt", text, checks)
-
-
-def _render_docx(source: SourceDocument, destination: Path, config: Config) -> None:
-    render_docx(source.markdown, destination, config, source.metadata(config))
-
-
-def _verify_docx(
-    source: SourceDocument, artifact: Path, checks: Checks, config: Config
-) -> list[CheckResult]:
-    return check_docx(source.stem, artifact, checks, source.metadata(config), source.markdown)
-
-
-FORMATS: dict[str, OutputFormat] = {
-    "pdf": OutputFormat(_render_pdf, _verify_pdf),
-    "txt": OutputFormat(_render_txt, _verify_txt),
-    "docx": OutputFormat(_render_docx, _verify_docx),
-}
-
-# Configuration validates format names without importing this module; a new
-# format that misses either side fails at import, not in a user's render.
-assert tuple(FORMATS) == KNOWN_FORMATS

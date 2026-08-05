@@ -1,65 +1,89 @@
 # Changelog
 
-All notable changes to this project are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
-follows [Semantic Versioning](https://semver.org/).
+Notable user-visible changes are recorded here. This project uses
+[Semantic Versioning](https://semver.org/) and follows the general structure of
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-08-02
+### Changed
 
-Initial release.
+- `style.paper` accepts `us-letter` and `a4` only. Any other Typst paper name
+  was accepted and applied to the PDF, while the Word file was silently left at
+  US Letter. Both formats now come from one table, and a size the Word file
+  cannot be given is rejected by name.
+- The reference DOCX and the styling pass over Pandoc's output now share one
+  function, so a Word file made either way carries the same page size, font,
+  and spacing. The reference DOCX previously ignored the configured paper.
+- `pressume init` documents the settings it had been leaving out: `profile`,
+  `lint_only`, `ordered_list_sections`, `dated_sections`,
+  `citation_field_labels`, `max_heading_level`, and `contact_after_name`.
+
+### Fixed
+
+- CI installed no development tools at all on its fifteen-cell operating system
+  and Python matrix. It asked for a `dev` extra that stopped existing when those
+  dependencies moved to a PEP 735 group, so the tests ran without `reportlab`
+  or a pinned pytest. The lockfile had drifted the same way and is regenerated.
+- CI now verifies the lockfile against `pyproject.toml` instead of skipping the
+  comparison, which is what its own comment claimed it did.
 
 ### Added
 
-- Markdown to PDF rendering through Pandoc and Typst, with the PDF as the
-  document of record: tagged, single column, US Letter or A4, with document
-  metadata, keywords, language, region, and a selectable PDF standard
-  including PDF/UA.
-- Coordinated `modern`, `technical`, and `traditional` themes backed by
-  bundled Source Sans 3, IBM Plex Sans, and Source Serif 4 typefaces, with
-  `compact`, `balanced`, and `spacious` density settings and one-command
-  theme and density overrides. Every dependency and bundled asset carries an
-  MIT-compatible license.
-- Semantic rendering components for contact details, logistics, role
-  metadata, skill groups, records, and publication citations, which render as
-  visually separated blocks with hanging structure.
-- Plain-text companion output and Word output on demand: DOCX is generated,
-  restyled to the theme, scrubbed of private metadata (custom properties and
-  revision-session identifiers), reopened, and verified as linear OOXML with
-  embedded links; `pressume refdoc` generates a matching Pandoc reference
-  document.
-- A document contract enforced at every render, with lint failures as render
-  failures: one H1 name line, a contact paragraph, a section vocabulary in
-  fixed order, scoped role headings, labeled skills lines, standardized role
-  metadata and dated entries, fixed citation field labels, and the applicable
-  markdownlint rules under their standard names. Built-in `standard`,
-  `academic`, `international`, and `minimal` policies with per-rule warning
-  and disable overlays.
-- Verification of the delivered files: exact or ranged page targets,
-  character policy with named offenders, required, protected, and forbidden
-  strings, ATS parse-back of name, contact, section order, and date style,
-  metadata and language checks, real hyperlink annotations, PDF/UA structure,
-  geometric clearance after names and headings, and agreement between two
-  independent text extractors (pypdf cross-checked against Poppler when
-  installed, the bundled pdfminer.six otherwise).
-- Transactional rendering: sources validate first, artifacts render and
-  verify in staging, existing output is replaced only after every selected
-  document passes, and a failed replacement restores every prior artifact.
-- Automatic links for visible email, phone, profile, ORCID, and DOI text,
-  preserving the displayed characters an extractor consumes.
-- Zero-configuration operation: without a config file, every Markdown resume
-  in the current folder renders to `renders/`, and contact and section
-  checks derive their expected values from the documents themselves. The
-  optional TOML overlay adds page targets, exact strings, per-document
-  formats and metadata, custom vocabularies, and named profiles, and rejects
-  unknown keys loudly with dotted paths.
-- Commands: `render`, `preview` (with watch and open modes), `check`,
-  `lint`, `inspect` for advisory readability and page-balance findings,
-  `list` for the resolved document plan, manifest-aware `clean`, `init`,
-  `new` with bundled lint-clean resume and CV templates, `refdoc`, and
-  `doctor`; `--json` machine-readable reports and documented stable exit
-  codes throughout.
+- A test that blocks this process's socket calls around a full render and
+  verification, so the claim that pressume makes no network requests is
+  enforced rather than stated.
+- Visual regression by recorded text geometry. Five invented fixtures render
+  under every theme and both paper sizes, and each of the thirty results is
+  compared line by line against a recorded baseline: page count, text region,
+  and the box, size, and font of every text line. The comparison reports
+  overflow past the text region, clipping at the paper edge, heading
+  collisions, a heading stranded at the bottom of a page, a page-count change,
+  a nearly blank final page, headings that stopped outranking body text, and
+  any material change in spacing, typography, or margins. Every one of those
+  has a test that perturbs something and proves the comparison fails.
+- The baselines are version-controlled data under `tests/baselines`, written
+  only by `tests/regenerate_geometry_baselines.py`. The comparison has no code
+  path that writes a file, so a failing check cannot rewrite what it failed
+  against. The Typst and Pandoc versions behind the recorded files are stored
+  with them; when the running versions differ, one test says so by name and the
+  comparisons skip rather than passing against a renderer that did not produce
+  them.
+- Tests for the failure paths that protect delivered files: a document that
+  renders and then fails verification leaves the previous files byte-identical,
+  `clean --apply` leaves a file it did not create, and the DOCX and PDF checks
+  fail on a table, leftover authoring metadata, a dropped hyperlink, missing
+  accessibility tags, and wrong metadata.
 
-[Unreleased]: https://github.com/sethstraw/pressume/compare/v0.1.0...HEAD
+## [0.2.0] - 2026-08-05
+
+### Fixed
+
+- A hard line break no longer ends the component it sits inside.
+- An ORCID identifier is no longer read as a telephone number.
+
+### Changed
+
+- Rewrote the documentation and stated plainly that the project is AI-assisted.
+- Held cryptography below 49 on Intel Macs, where the wheels pdfminer needs
+  indirectly were removed upstream.
+
+### Added
+
+- A release workflow that publishes from a tag, with signed attestations.
+
+## [0.1.0] - 2026-08-02
+
+Initial public release.
+
+### Added
+
+- Markdown rendering to PDF, plain text, and DOCX through Pandoc and Typst.
+- Verification of the rendered files against page targets, text, wording,
+  structure, links, metadata, and accessibility.
+- Bundled themes, a configurable document contract, and starter templates.
+- Transactional output replacement and manifest-aware cleanup.
+
+[Unreleased]: https://github.com/sethstraw/pressume/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sethstraw/pressume/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sethstraw/pressume/releases/tag/v0.1.0

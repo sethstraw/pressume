@@ -9,7 +9,10 @@ BARE_PROFILE = re.compile(
     r"(?<![\w/(])((?:www\.)?(?:linkedin\.com|github\.com|orcid\.org)/[^\s|,)]+)"
 )
 DOI = re.compile(r"(?i)\bdoi:(10\.\d{4,9}/[-._;()/:A-Z0-9]+)(?=\s|$)")
-PHONE = re.compile(r"(?<![\w\[])\+?\d[\d ().-]{6,}\d(?![\w\]])")
+# Slashes and hyphens at either boundary exclude numeric identifiers such as an
+# ORCID. Without those guards, a profile URL in the contact block can acquire a
+# nested ``tel:`` link even though it is not a telephone number.
+PHONE = re.compile(r"(?<![\w/.\[-])\+?\d[\d ().-]{6,}\d(?![\w/\]-])")
 EXPLICIT_LINK = re.compile(r"\[[^]]+\]\([^)]+\)")
 
 

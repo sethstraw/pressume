@@ -4,10 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pressume"
-version = "0.1.0"
-description = "Render polished, ATS-readable resume PDFs from Markdown, via Pandoc and Typst."
+version = "0.2.0"
+description = "Render and verify resume PDFs from Markdown with Pandoc and Typst."
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "Seth A. Strawbridge" }]
 keywords = ["resume", "cv", "markdown", "typst", "pandoc", "ats", "pdf"]
@@ -26,6 +27,9 @@ classifiers = [
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
 dependencies = [
+    # cryptography 49 removed macOS x86_64 wheels. pdfminer uses it indirectly,
+    # so keep the final Intel-compatible release on Intel Macs.
+    "cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "pdfminer.six>=20231228",
     "pypandoc-binary>=1.13",
     "typst>=0.14.0",
@@ -41,7 +45,10 @@ Repository = "https://github.com/sethstraw/pressume"
 Issues = "https://github.com/sethstraw/pressume/issues"
 Changelog = "https://github.com/sethstraw/pressume/blob/main/CHANGELOG.md"
 
-[project.optional-dependencies]
+# PEP 735. Development dependencies are not an installable extra of this
+# package, and declaring them as one was always a workaround for the absence of
+# this table.
+[dependency-groups]
 dev = [
     "build>=1.2",
     "check-wheel-contents>=0.6",
@@ -50,7 +57,6 @@ dev = [
     "pytest-cov>=6.0",
     "reportlab>=4.0",
     "ruff>=0.5",
-    "twine>=6.0",
 ]
 
 [project.scripts]

@@ -3,6 +3,11 @@
 Configuration is an overlay on useful defaults. Validation is deliberately
 strict and cumulative: misspellings and wrong types are reported together,
 with dotted paths that point back to the offending setting.
+
+Every setting is described once, in the ``Setting`` tables below. Those tables
+are what rejects an unknown key, what checks a type, a range, or a permitted
+value, and what the starter configuration is tested against, so a new setting
+is added in one place rather than four.
 """
 
 from __future__ import annotations
@@ -12,7 +17,7 @@ import sys
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePath
-from typing import cast
+from typing import Any, cast
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -21,13 +26,24 @@ else:  # pragma: no cover - exercised by the Python 3.10 CI job
 
 from pressume.checks.document import DocumentRules
 from pressume.errors import PressumeError
-from pressume.themes import DENSITY_FACTORS, theme_names
+from pressume.themes import DENSITY_FACTORS, THEMES
 
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
-PAPER_NAME = re.compile(r"^[a-z0-9-]+$")
+LANGUAGE_CODE = re.compile(r"[a-z]{2,3}")
+REGION_CODE = re.compile(r"[A-Z]{2}")
 KNOWN_FORMATS = ("pdf", "txt", "docx")
 DATE_STYLES = ("long", "short", "off")
-PDF_STANDARDS = ("default", "ua-1", "a-2a", "a-2u")
+# PDF/A is not offered. Every PDF/A level Typst emits requires a document
+# date, and pressume writes `date: none` so two renders of one source are
+# byte-comparable and no build timestamp travels with the file.
+PDF_STANDARDS = ("default", "ua-1")
+
+# Page size in inches. The Typst page and the Word deliverable are both set
+# from this table, so every paper pressume accepts is one both can produce.
+PAPER_SIZES = {
+    "us-letter": (8.5, 11.0),
+    "a4": (8.27, 11.69),
+}
 
 TomlTable = dict[str, object]
 
@@ -140,78 +156,129 @@ class Config:
         )
 
 
-KNOWN_KEYS = {
-    "": ("paths", "output", "style", "documents", "checks", "document", "profiles"),
-    "paths": ("source_dir", "output_dir", "fonts", "reference_docx"),
-    "output": ("formats",),
-    "style": (
-        "theme",
-        "density",
-        "font",
-        "size_pt",
-        "margin_in",
-        "accent",
-        "paper",
-        "language",
-        "region",
-        "pdf_standard",
-    ),
-    "documents[]": (
-        "file",
-        "pages",
-        "min_pages",
-        "max_pages",
-        "profile",
-        "lint_only",
-        "formats",
-        "output_name",
-        "title",
-        "author",
-        "description",
-        "keywords",
-        "required_strings",
-        "protected_strings",
-        "forbidden_strings",
-    ),
-    "checks": (
-        "ascii_only",
-        "forbid_smart_punctuation",
-        "allowed_characters",
-        "required_strings",
-        "protected_strings",
-        "forbidden_strings",
-        "section_order",
-        "contact_name",
-        "contact_email",
-        "contact_phones",
-        "date_style",
-    ),
-    "rules": (
-        "section_vocabulary",
-        "required_sections",
-        "labeled_sections",
-        "subheading_sections",
-        "ordered_list_sections",
-        "dated_sections",
-        "citation_field_labels",
-        "max_heading_level",
-        "contact_after_name",
-        "policy",
-        "warning_rules",
-        "disabled_rules",
-    ),
-}
+@dataclass(frozen=True)
+class Setting:
+    """One configurable value: its name, its type, and what it will accept.
 
-RULE_LIST_KEYS = (
-    "section_vocabulary",
+    ``kind`` names the TOML type. ``target`` is the attribute the value lands
+    on when it differs from the key. ``requirement`` completes the sentence
+    "``key``: ``value`` ..." when a value is the right type but unacceptable.
+    """
+
+    name: str
+    kind: str
+    target: str = ""
+    choices: tuple[str, ...] = ()
+    minimum: float | None = None
+    maximum: float | None = None
+    pattern: re.Pattern[str] | None = None
+    requirement: str = ""
+    fold: str = ""
+
+    @property
+    def attribute(self) -> str:
+        """Return the attribute this setting is stored under."""
+        return self.target or self.name
+
+
+def _settings(*items: Setting) -> dict[str, Setting]:
+    """Index settings by their configuration key."""
+    return {item.name: item for item in items}
+
+
+TOP_LEVEL_KEYS = ("paths", "output", "style", "documents", "checks", "document", "profiles")
+
+PATH_SETTINGS = _settings(
+    Setting("source_dir", "path"),
+    Setting("output_dir", "path"),
+    Setting("fonts", "paths", target="font_dirs"),
+    Setting("reference_docx", "path"),
+)
+
+OUTPUT_SETTINGS = _settings(Setting("formats", "strings"))
+
+STYLE_SETTINGS = _settings(
+    Setting("theme", "str", choices=tuple(THEMES), fold="casefold"),
+    Setting("density", "str", choices=tuple(DENSITY_FACTORS), fold="casefold"),
+    Setting("font", "str"),
+    Setting("size_pt", "number", minimum=6, maximum=14),
+    Setting("margin_in", "number", minimum=0.3, maximum=1.5),
+    Setting("accent", "str", pattern=HEX_COLOR, requirement="is not a #RRGGBB hex color"),
+    Setting("paper", "str", choices=tuple(PAPER_SIZES), fold="casefold"),
+    Setting(
+        "language",
+        "str",
+        pattern=LANGUAGE_CODE,
+        fold="casefold",
+        requirement="is not a two- or three-letter ISO 639 language code",
+    ),
+    Setting(
+        "region",
+        "str",
+        pattern=REGION_CODE,
+        fold="upper",
+        requirement="is not a two-letter ISO 3166-1 region code",
+    ),
+    Setting("pdf_standard", "str", choices=PDF_STANDARDS, fold="casefold"),
+)
+
+DOCUMENT_SETTINGS = _settings(
+    Setting("file", "str"),
+    Setting("pages", "int", minimum=1, requirement="is not a positive integer page target"),
+    Setting("min_pages", "int", minimum=1, requirement="is not a positive integer"),
+    Setting("max_pages", "int", minimum=1, requirement="is not a positive integer"),
+    Setting("profile", "str"),
+    Setting("lint_only", "bool"),
+    Setting("formats", "strings"),
+    Setting("output_name", "str"),
+    Setting("title", "str"),
+    Setting("author", "str"),
+    Setting("description", "str"),
+    Setting("keywords", "strings"),
+    Setting("required_strings", "strings"),
+    Setting("protected_strings", "strings"),
+    Setting("forbidden_strings", "strings"),
+)
+
+CHECK_SETTINGS = _settings(
+    Setting("ascii_only", "bool"),
+    Setting("forbid_smart_punctuation", "bool"),
+    Setting("allowed_characters", "strings"),
+    Setting("required_strings", "strings"),
+    Setting("protected_strings", "strings"),
+    Setting("forbidden_strings", "strings"),
+    Setting("section_order", "strings"),
+    Setting("contact_name", "str"),
+    Setting("contact_email", "str"),
+    Setting("contact_phones", "strings"),
+    Setting("date_style", "str", choices=DATE_STYLES),
+)
+
+POLICY_SETTING = Setting("policy", "str", choices=DocumentRules.policy_names(), fold="casefold")
+
+RULE_SETTINGS = _settings(
+    Setting("section_vocabulary", "strings"),
+    Setting("required_sections", "strings"),
+    Setting("labeled_sections", "strings"),
+    Setting("subheading_sections", "strings"),
+    Setting("ordered_list_sections", "strings"),
+    Setting("dated_sections", "strings"),
+    Setting("citation_field_labels", "strings"),
+    Setting("max_heading_level", "int", minimum=2, maximum=6),
+    Setting("contact_after_name", "bool"),
+    Setting("warning_rules", "strings"),
+    Setting("disabled_rules", "strings"),
+)
+
+RULE_KEYS = (POLICY_SETTING.name, *RULE_SETTINGS)
+
+# Rule lists whose entries must name a section the vocabulary declares.
+SCOPED_RULE_LISTS = (
     "required_sections",
     "labeled_sections",
     "subheading_sections",
     "ordered_list_sections",
     "dated_sections",
-    "citation_field_labels",
-    "warning_rules",
-    "disabled_rules",
 )
 
 
@@ -250,7 +317,7 @@ def load_config(path: Path) -> Config:
 
     problems: list[str] = []
     config = Config(config_dir=path.expanduser().resolve().parent)
-    _reject_unknown(raw, "", "", problems)
+    _reject_unknown(raw, TOP_LEVEL_KEYS, "", problems)
 
     paths = _table(raw, "paths", problems)
     output = _table(raw, "output", problems)
@@ -258,12 +325,17 @@ def load_config(path: Path) -> Config:
     checks = _table(raw, "checks", problems)
     document_rules = _table(raw, "document", problems)
     profiles = _table(raw, "profiles", problems)
-    for name, table in (("paths", paths), ("output", output), ("style", style), ("checks", checks)):
-        _reject_unknown(table, name, name, problems)
+    for name, table, known in (
+        ("paths", paths, PATH_SETTINGS),
+        ("output", output, OUTPUT_SETTINGS),
+        ("style", style, STYLE_SETTINGS),
+        ("checks", checks, CHECK_SETTINGS),
+    ):
+        _reject_unknown(table, tuple(known), name, problems)
 
-    _parse_paths(paths, config, problems)
+    _apply(paths, PATH_SETTINGS, "paths", config, problems)
     _parse_output(output, config, problems)
-    _parse_style(style, config.style, problems)
+    _apply(style, STYLE_SETTINGS, "style", config.style, problems)
     _parse_documents(raw.get("documents", []), config, problems)
     _parse_checks(checks, config.checks, problems)
     config.document_rules = _parse_rules(document_rules, DocumentRules(), "document", problems)
@@ -286,146 +358,121 @@ def _table(parent: TomlTable, key: str, problems: list[str]) -> TomlTable:
     return cast(TomlTable, value)
 
 
-def _reject_unknown(table: TomlTable, group: str, where: str, problems: list[str]) -> None:
+def _reject_unknown(
+    table: TomlTable, allowed: tuple[str, ...], where: str, problems: list[str]
+) -> None:
     """Reject keys that would otherwise become dangerous silent no-ops."""
-    allowed = KNOWN_KEYS[group]
     for key in table:
         if key not in allowed:
             label = f"{where}.{key}" if where else key
             problems.append(f"{label}: unknown key; valid keys are {sorted(allowed)}")
 
 
-def _string(table: TomlTable, key: str, where: str, problems: list[str]) -> str | None:
-    value = table.get(key)
+def _show(value: object) -> str:
+    """Render a value for an error message the way a user wrote it."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"{value:g}"
+    return repr(value)
+
+
+def _read(table: TomlTable, setting: Setting, where: str, problems: list[str]) -> Any:
+    """Return one validated value, or None when it is absent or rejected."""
+    value = table.get(setting.name)
     if value is None:
         return None
+    label = f"{where}.{setting.name}" if where else setting.name
+
+    if setting.kind == "bool":
+        if not isinstance(value, bool):
+            problems.append(f"{label}: expected bool, got {type(value).__name__}")
+            return None
+        return value
+
+    if setting.kind in ("strings", "paths"):
+        if not isinstance(value, list):
+            problems.append(f"{label}: expected list, got {type(value).__name__}")
+            return None
+        if not all(isinstance(item, str) and item for item in value):
+            problems.append(f"{label}: every entry must be a non-empty string")
+            return None
+        entries = cast(list[str], value)
+        return [Path(entry) for entry in entries] if setting.kind == "paths" else list(entries)
+
+    if setting.kind in ("int", "number"):
+        return _read_number(value, setting, label, problems)
+    return _read_text(value, setting, label, problems)
+
+
+def _read_number(value: object, setting: Setting, label: str, problems: list[str]) -> Any:
+    """Validate an integer or a real number against its permitted range."""
+    if setting.kind == "int":
+        if isinstance(value, bool) or not isinstance(value, int):
+            problems.append(f"{label}: expected int, got {type(value).__name__}")
+            return None
+        number: float = value
+    else:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            problems.append(f"{label}: expected number, got {type(value).__name__}")
+            return None
+        number = float(value)
+    below = setting.minimum is not None and number < setting.minimum
+    above = setting.maximum is not None and number > setting.maximum
+    if below or above:
+        problems.append(f"{label}: {_show(number)} {_range_requirement(setting)}")
+        return None
+    return value if setting.kind == "int" else number
+
+
+def _range_requirement(setting: Setting) -> str:
+    """Say what an out-of-range number should have been."""
+    if setting.requirement:
+        return setting.requirement
+    low = "" if setting.minimum is None else f"{setting.minimum:g}"
+    high = "" if setting.maximum is None else f"{setting.maximum:g}"
+    return f"is outside the sensible range {low}-{high}"
+
+
+def _read_text(value: object, setting: Setting, label: str, problems: list[str]) -> Any:
+    """Validate a string against emptiness, permitted values, and shape."""
     if not isinstance(value, str):
-        problems.append(f"{where}.{key}: expected str, got {type(value).__name__}")
+        problems.append(f"{label}: expected str, got {type(value).__name__}")
         return None
     if not value.strip():
-        problems.append(f"{where}.{key}: must not be empty")
+        problems.append(f"{label}: must not be empty")
         return None
-    return value
+    text = value.casefold() if setting.fold == "casefold" else value
+    text = text.upper() if setting.fold == "upper" else text
+    if setting.choices and text not in setting.choices:
+        problems.append(f"{label}: {value!r} must be one of {list(setting.choices)}")
+        return None
+    if setting.pattern is not None and not setting.pattern.fullmatch(text):
+        problems.append(f"{label}: {value!r} {setting.requirement}")
+        return None
+    return Path(text) if setting.kind == "path" else text
 
 
-def _boolean(table: TomlTable, key: str, where: str, problems: list[str]) -> bool | None:
-    value = table.get(key)
-    if value is None:
-        return None
-    if not isinstance(value, bool):
-        problems.append(f"{where}.{key}: expected bool, got {type(value).__name__}")
-        return None
-    return value
-
-
-def _integer(table: TomlTable, key: str, where: str, problems: list[str]) -> int | None:
-    value = table.get(key)
-    if value is None:
-        return None
-    if isinstance(value, bool) or not isinstance(value, int):
-        problems.append(f"{where}.{key}: expected int, got {type(value).__name__}")
-        return None
-    return value
-
-
-def _number(table: TomlTable, key: str, where: str, problems: list[str]) -> float | None:
-    value = table.get(key)
-    if value is None:
-        return None
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        problems.append(f"{where}.{key}: expected number, got {type(value).__name__}")
-        return None
-    return float(value)
-
-
-def _strings(table: TomlTable, key: str, where: str, problems: list[str]) -> list[str] | None:
-    value = table.get(key)
-    if value is None:
-        return None
-    if not isinstance(value, list):
-        problems.append(f"{where}.{key}: expected list, got {type(value).__name__}")
-        return None
-    if not all(isinstance(item, str) and item for item in value):
-        problems.append(f"{where}.{key}: every entry must be a non-empty string")
-        return None
-    return cast(list[str], value)
-
-
-def _parse_paths(table: TomlTable, config: Config, problems: list[str]) -> None:
-    if value := _string(table, "source_dir", "paths", problems):
-        config.source_dir = Path(value)
-    if value := _string(table, "output_dir", "paths", problems):
-        config.output_dir = Path(value)
-    if values := _strings(table, "fonts", "paths", problems):
-        config.font_dirs = [Path(value) for value in values]
-    if value := _string(table, "reference_docx", "paths", problems):
-        config.reference_docx = Path(value)
+def _apply(
+    table: TomlTable,
+    settings: dict[str, Setting],
+    where: str,
+    target: object,
+    problems: list[str],
+) -> None:
+    """Store every present, valid setting on ``target``."""
+    for setting in settings.values():
+        value = _read(table, setting, where, problems)
+        if value is not None:
+            setattr(target, setting.attribute, value)
 
 
 def _parse_output(table: TomlTable, config: Config, problems: list[str]) -> None:
-    values = _strings(table, "formats", "output", problems)
+    values = _read(table, OUTPUT_SETTINGS["formats"], "output", problems)
     if values is None:
         return
     try:
         config.formats = validate_formats(values, "output.formats")
     except ConfigError as error:
         problems.extend(error.problems)
-
-
-def _parse_style(table: TomlTable, style: Style, problems: list[str]) -> None:
-    if theme := _string(table, "theme", "style", problems):
-        normalized = theme.casefold()
-        if normalized in theme_names():
-            style.theme = normalized
-        else:
-            problems.append(f"style.theme: {theme!r} must be one of {list(theme_names())}")
-    if density := _string(table, "density", "style", problems):
-        normalized = density.casefold()
-        if normalized in DENSITY_FACTORS:
-            style.density = normalized
-        else:
-            problems.append(f"style.density: {density!r} must be one of {list(DENSITY_FACTORS)}")
-    if font := _string(table, "font", "style", problems):
-        style.font = font
-    if (size := _number(table, "size_pt", "style", problems)) is not None:
-        if 6 <= size <= 14:
-            style.size_pt = size
-        else:
-            problems.append(f"style.size_pt: {size:g} is outside the sensible range 6-14")
-    if (margin := _number(table, "margin_in", "style", problems)) is not None:
-        if 0.3 <= margin <= 1.5:
-            style.margin_in = margin
-        else:
-            problems.append(f"style.margin_in: {margin:g} is outside the sensible range 0.3-1.5")
-    if accent := _string(table, "accent", "style", problems):
-        if HEX_COLOR.fullmatch(accent):
-            style.accent = accent
-        else:
-            problems.append(f"style.accent: {accent!r} is not a #RRGGBB hex color")
-    if paper := _string(table, "paper", "style", problems):
-        normalized = paper.lower()
-        if PAPER_NAME.fullmatch(normalized):
-            style.paper = normalized
-        else:
-            problems.append("style.paper: use a Typst paper name such as 'us-letter' or 'a4'")
-    if language := _string(table, "language", "style", problems):
-        if re.fullmatch(r"[a-z]{2,3}", language.casefold()):
-            style.language = language.casefold()
-        else:
-            problems.append("style.language: use a two- or three-letter ISO 639 language code")
-    if region := _string(table, "region", "style", problems):
-        if re.fullmatch(r"[A-Za-z]{2}", region):
-            style.region = region.upper()
-        else:
-            problems.append("style.region: use a two-letter ISO 3166-1 region code")
-    if standard := _string(table, "pdf_standard", "style", problems):
-        normalized = standard.casefold()
-        if normalized in PDF_STANDARDS:
-            style.pdf_standard = normalized
-        else:
-            problems.append(
-                f"style.pdf_standard: {standard!r} must be one of {list(PDF_STANDARDS)}"
-            )
 
 
 def _parse_documents(value: object, config: Config, problems: list[str]) -> None:
@@ -440,88 +487,52 @@ def _parse_documents(value: object, config: Config, problems: list[str]) -> None
             problems.append(f"{where}: expected a table")
             continue
         entry = cast(TomlTable, raw_entry)
-        _reject_unknown(entry, "documents[]", where, problems)
-        filename = _string(entry, "file", where, problems)
-        if filename is None:
-            if "file" not in entry:
-                problems.append(f"{where}.file: required Markdown path is missing")
-            continue
-        if not _is_safe_markdown_path(filename):
-            problems.append(f"{where}.file: expected a relative Markdown path ending in .md")
-            continue
-        pages = _integer(entry, "pages", where, problems)
-        if pages is not None and pages < 1:
-            problems.append(f"{where}.pages: expected a positive integer page target")
-            pages = None
-        min_pages = _integer(entry, "min_pages", where, problems)
-        max_pages = _integer(entry, "max_pages", where, problems)
-        for key, value in (("min_pages", min_pages), ("max_pages", max_pages)):
-            if value is not None and value < 1:
-                problems.append(f"{where}.{key}: expected a positive integer")
-        if pages is not None and (min_pages is not None or max_pages is not None):
-            problems.append(f"{where}: pages cannot be combined with min_pages or max_pages")
-        if min_pages is not None and max_pages is not None and min_pages > max_pages:
-            problems.append(f"{where}: min_pages cannot exceed max_pages")
-        profile = _string(entry, "profile", where, problems)
-        lint_only = _boolean(entry, "lint_only", where, problems)
-        output_name = _string(entry, "output_name", where, problems)
-        if output_name is not None and not _is_safe_output_name(output_name):
-            problems.append(f"{where}.output_name: use a filename stem without a path or extension")
-            output_name = None
-        format_values = _strings(entry, "formats", where, problems)
-        formats: list[str] | None = None
-        if format_values is not None:
-            try:
-                formats = validate_formats(format_values, f"{where}.formats")
-            except ConfigError as error:
-                problems.extend(error.problems)
-        scoped: dict[str, list[str]] = {}
-        for key in ("required_strings", "protected_strings", "forbidden_strings"):
-            scoped[key] = _strings(entry, key, where, problems) or []
-        config.documents.append(
-            Document(
-                file=filename,
-                pages=pages,
-                min_pages=min_pages,
-                max_pages=max_pages,
-                profile=profile,
-                lint_only=lint_only or False,
-                formats=formats,
-                output_name=output_name,
-                title=_string(entry, "title", where, problems) or "",
-                author=_string(entry, "author", where, problems) or "",
-                description=_string(entry, "description", where, problems) or "",
-                keywords=_strings(entry, "keywords", where, problems) or [],
-                required_strings=scoped["required_strings"],
-                protected_strings=scoped["protected_strings"],
-                forbidden_strings=scoped["forbidden_strings"],
-            )
-        )
+        _reject_unknown(entry, tuple(DOCUMENT_SETTINGS), where, problems)
+        document = _document(entry, where, problems)
+        if document is not None:
+            config.documents.append(document)
+
+
+def _document(entry: TomlTable, where: str, problems: list[str]) -> Document | None:
+    """Build one document entry, reporting everything wrong with it."""
+    values: dict[str, Any] = {}
+    for setting in DOCUMENT_SETTINGS.values():
+        value = _read(entry, setting, where, problems)
+        if value is not None:
+            values[setting.name] = value
+
+    filename = values.get("file")
+    if filename is None:
+        if "file" not in entry:
+            problems.append(f"{where}.file: required Markdown path is missing")
+        return None
+    if not _is_safe_markdown_path(filename):
+        problems.append(f"{where}.file: expected a relative Markdown path ending in .md")
+        return None
+
+    if "output_name" in values and not _is_safe_output_name(values["output_name"]):
+        problems.append(f"{where}.output_name: use a filename stem without a path or extension")
+        del values["output_name"]
+
+    if "formats" in values:
+        try:
+            values["formats"] = validate_formats(values["formats"], f"{where}.formats")
+        except ConfigError as error:
+            problems.extend(error.problems)
+            del values["formats"]
+
+    pages, minimum, maximum = (values.get(key) for key in ("pages", "min_pages", "max_pages"))
+    if pages is not None and (minimum is not None or maximum is not None):
+        problems.append(f"{where}: pages cannot be combined with min_pages or max_pages")
+    if minimum is not None and maximum is not None and minimum > maximum:
+        problems.append(f"{where}: min_pages cannot exceed max_pages")
+    return Document(**values)
 
 
 def _parse_checks(table: TomlTable, checks: Checks, problems: list[str]) -> None:
-    for key in ("ascii_only", "forbid_smart_punctuation"):
-        if (value := _boolean(table, key, "checks", problems)) is not None:
-            setattr(checks, key, value)
-    for key in (
-        "allowed_characters",
-        "required_strings",
-        "protected_strings",
-        "forbidden_strings",
-        "section_order",
-        "contact_phones",
-    ):
-        if (values := _strings(table, key, "checks", problems)) is not None:
-            setattr(checks, key, list(values))
+    _apply(table, CHECK_SETTINGS, "checks", checks, problems)
     if any(len(value) != 1 for value in checks.allowed_characters):
         problems.append("checks.allowed_characters: every entry must be exactly one character")
-    for key in ("contact_name", "contact_email", "date_style"):
-        if (text := _string(table, key, "checks", problems)) is not None:
-            setattr(checks, key, text)
-    if checks.date_style not in DATE_STYLES:
-        problems.append(
-            f"checks.date_style: {checks.date_style!r} must be one of {list(DATE_STYLES)}"
-        )
     overlap = set(checks.required_strings) & set(checks.forbidden_strings)
     if overlap:
         problems.append(f"checks: strings cannot be both required and forbidden: {sorted(overlap)}")
@@ -530,34 +541,27 @@ def _parse_checks(table: TomlTable, checks: Checks, problems: list[str]) -> None
 def _parse_rules(
     table: TomlTable, base: DocumentRules, where: str, problems: list[str]
 ) -> DocumentRules:
-    _reject_unknown(table, "rules", where, problems)
-    if policy := _string(table, "policy", where, problems):
-        try:
-            base.apply_policy(policy.casefold())
-        except ValueError:
-            problems.append(
-                f"{where}.policy: {policy!r} must be one of {list(DocumentRules.policy_names())}"
-            )
-    for key in RULE_LIST_KEYS:
-        if (values := _strings(table, key, where, problems)) is not None:
-            setattr(base, key, list(values))
-            folded = [item.casefold() for item in values]
+    _reject_unknown(table, RULE_KEYS, where, problems)
+    # A policy is a preset, so it lands before the explicit overrides that are
+    # meant to refine it.
+    if policy := _read(table, POLICY_SETTING, where, problems):
+        base.apply_policy(policy)
+    for key, setting in RULE_SETTINGS.items():
+        value = _read(table, setting, where, problems)
+        if value is None:
+            continue
+        if setting.kind == "strings":
+            folded = [item.casefold() for item in value]
             if len(folded) != len(set(folded)):
                 problems.append(f"{where}.{key}: duplicate values are not allowed")
-    if (value := _integer(table, "max_heading_level", where, problems)) is not None:
-        if 2 <= value <= 6:
-            base.max_heading_level = value
-        else:
-            problems.append(f"{where}.max_heading_level: {value} is outside 2-6")
-    if (value := _boolean(table, "contact_after_name", where, problems)) is not None:
-        base.contact_after_name = value
+        setattr(base, setting.attribute, value)
 
     vocabulary = {entry.casefold() for entry in base.section_vocabulary}
     if "dated_sections" not in table:
         base.dated_sections = [
             entry for entry in base.dated_sections if entry.casefold() in vocabulary
         ]
-    for key in RULE_LIST_KEYS[1:6]:
+    for key in SCOPED_RULE_LISTS:
         for entry in getattr(base, key):
             if entry.casefold() not in vocabulary:
                 problems.append(f"{where}.{key}: {entry!r} is not in the section vocabulary")
