@@ -102,6 +102,16 @@ strict = true
 ignore_missing_imports = true
 files = ["src"]
 
+# Serena uses Pyright for semantic Python diagnostics. Keep it on the local
+# project environment and source-layout import root.
+[tool.pyright]
+include = ["src", "tests"]
+exclude = [".venv", "build", "dist", "**/__pycache__"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.13"
+extraPaths = ["src"]
+
 [tool.coverage.run]
 branch = true
 source = ["pressume"]
