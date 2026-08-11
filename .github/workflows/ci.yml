@@ -44,18 +44,11 @@ jobs:
         run: uv sync --locked --all-groups
       - name: Audit dependencies for known vulnerabilities
         run: uv audit --preview-features audit-command
-      - name: Check dependency licences are shippable under MIT
-        # pip-licenses reads the installed tree, so it is added for this run
-        # only rather than becoming something the project depends on.
-        run: uv run --with pip-licenses python scripts/audit_licenses.py
-      - name: Check formatting
-        run: uv run ruff format --check src tests scripts
-      - name: Lint
-        run: uv run ruff check src tests scripts
-      - name: Check types
-        run: uv run mypy
-      - name: Test with branch coverage
-        run: uv run pytest --cov --cov-report=term-missing
+      # The same script a person runs, so a local pass and a green build mean the
+      # same thing. The advisory audit above needs the runner's resolved
+      # environment, so it stays outside.
+      - name: Verification gate
+        run: bash scripts/gate.sh
 
   test:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
