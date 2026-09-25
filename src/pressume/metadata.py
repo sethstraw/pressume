@@ -24,13 +24,18 @@ class DocumentMetadata:
 
 
 def derive_metadata(
-    markdown: str, document: Document, language: str, region: str
+    markdown: str, document: Document, language: str, region: str, letter: bool = False
 ) -> DocumentMetadata:
     """Combine document overrides with safe values derived from its H1 and profile."""
     match = H1.search(markdown)
     derived_author = MARKUP.sub("", match.group(1)).strip() if match else ""
     author = document.author or derived_author
-    kind = "CV" if document.profile == "cv" or "cv" in document.file.casefold() else "Resume"
+    if letter:
+        kind = "Letter"
+    elif document.profile == "cv" or "cv" in document.file.casefold():
+        kind = "CV"
+    else:
+        kind = "Resume"
     title = document.title or (f"{author} - {kind}" if author else kind)
     description = document.description or f"Professional {kind.lower()} for {author}".strip()
     return DocumentMetadata(

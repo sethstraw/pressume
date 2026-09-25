@@ -25,6 +25,7 @@ from pressume.config import Config, ConfigError, load_config, validate_formats
 from pressume.errors import PressumeError
 
 DEFAULT_CONFIG = Path("pressume.toml")
+NEW_FILENAMES = {"resume": "Resume.md", "cv": "CV.md", "letter": "Letter.md"}
 
 EXIT_OK = 0
 EXIT_VERIFICATION_FAILED = 1
@@ -97,7 +98,7 @@ pages = 1
 # forbidden_strings = []  # must not appear in this document
 
 [document]
-policy = "standard"       # standard, academic, international, or minimal
+policy = "standard"       # standard, academic, international, minimal, or letter
 section_vocabulary = [
     "Summary",
     "Core Skills",
@@ -226,8 +227,8 @@ def build_parser() -> argparse.ArgumentParser:
     new = commands.add_parser(
         "new", help="create a conforming document from a template", parents=[source]
     )
-    new.add_argument("kind", choices=("resume", "cv"), help="template to use")
-    new.add_argument("filename", nargs="?", help="default: Resume.md or CV.md")
+    new.add_argument("kind", choices=tuple(NEW_FILENAMES), help="template to use")
+    new.add_argument("filename", nargs="?", help="default: Resume.md, CV.md, or Letter.md")
     new.set_defaults(handler=_new)
 
     commands.add_parser("refdoc", help="generate the configured DOCX style reference").set_defaults(
@@ -390,8 +391,7 @@ def _new(arguments: argparse.Namespace, errors: Console) -> int:
     template = files("pressume") / "templates" / f"{arguments.kind}.md"
     destination_dir = config.resolve(config.source_dir)
     destination_dir.mkdir(parents=True, exist_ok=True)
-    default_name = "Resume.md" if arguments.kind == "resume" else "CV.md"
-    filename = arguments.filename or default_name
+    filename = arguments.filename or NEW_FILENAMES[arguments.kind]
     if Path(filename).suffix.casefold() != ".md" or Path(filename).name != filename:
         raise ConfigError(["New document filename must be a simple name ending in .md"])
     destination = destination_dir / filename
@@ -399,7 +399,10 @@ def _new(arguments: argparse.Namespace, errors: Console) -> int:
         errors.print(f"[red]{destination} already exists; not overwriting.[/red]")
         return EXIT_VERIFICATION_FAILED
     destination.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
-    errors.print(f"Wrote [cyan]{destination}[/cyan]. Next: pressume render")
+    step = "pressume render"
+    if arguments.kind == "letter":
+        step = 'give it a profile with policy = "letter" in pressume.toml, then ' + step
+    errors.print(f"Wrote [cyan]{destination}[/cyan]. Next: {step}")
     return EXIT_OK
 
 

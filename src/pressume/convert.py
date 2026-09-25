@@ -53,12 +53,13 @@ def render_pdf(
     output_path: Path,
     config: Config,
     metadata: DocumentMetadata | None = None,
+    letter: bool = False,
 ) -> None:
     """Render Markdown to a PDF via a generated Typst document."""
     metadata = metadata or derive_metadata(markdown, Document(file="Resume.md"), "en", "US")
     prepared = linkify_markdown(strip_thematic_breaks(markdown))
     body = markdown_to_typst_body(prepared)
-    document = build_document(body, config.style, metadata)
+    document = build_document(body, config.style, metadata, letter)
     with tempfile.TemporaryDirectory(prefix="pressume-") as scratch:
         source = Path(scratch) / "resume.typ"
         source.write_text(document, encoding="utf-8")

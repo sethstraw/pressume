@@ -28,7 +28,13 @@ from pressume.errors import RenderError
 def render_artifact(name: str, source: SourceDocument, destination: Path, config: Config) -> None:
     """Write ``source`` to ``destination`` in the named format."""
     if name == "pdf":
-        render_pdf(source.markdown, destination, config, source.metadata(config))
+        render_pdf(
+            source.markdown,
+            destination,
+            config,
+            source.metadata(config),
+            letter=source.is_letter(config),
+        )
     elif name == "docx":
         render_docx(source.markdown, destination, config, source.metadata(config))
     elif name == "txt":

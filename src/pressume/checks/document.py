@@ -196,11 +196,13 @@ class DocumentRules:
     )
     warning_rules: list[str] = field(default_factory=list)
     disabled_rules: list[str] = field(default_factory=list)
+    # The preset applied last; rendering sets a letter's body apart by it.
+    policy: str = "standard"
 
     @staticmethod
     def policy_names() -> tuple[str, ...]:
         """Return the supported contract presets."""
-        return ("standard", "academic", "international", "minimal")
+        return ("standard", "academic", "international", "minimal", "letter")
 
     def apply_policy(self, policy: str) -> None:
         """Apply a named policy before explicit configuration overrides."""
@@ -208,7 +210,17 @@ class DocumentRules:
             raise ValueError(
                 f"unknown policy {policy!r}; choose from {', '.join(self.policy_names())}"
             )
+        self.policy = policy
         if policy == "standard":
+            return
+        if policy == "letter":
+            # An empty vocabulary makes any section heading an S2 failure, so a
+            # letter is its name line, its contact paragraph, and prose.
+            self.section_vocabulary = []
+            self.required_sections = []
+            self.labeled_sections = []
+            self.subheading_sections = []
+            self.dated_sections = []
             return
         if policy == "academic":
             self.contact_after_name = False

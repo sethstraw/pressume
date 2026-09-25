@@ -30,6 +30,13 @@ Notable user-visible changes are recorded here. This project uses
 
 ### Added
 
+- A `letter` policy for cover letters, selected through a profile. It keeps
+  the H1 name line and the contact paragraph after it, and allows no sections,
+  so resume section rules no longer fail a letter. A letter's PDF sets its
+  paragraphs apart in every theme and density, where they had run together as
+  one block, and its metadata title reads `Name - Letter`. Resume and CV
+  output is unchanged.
+- `pressume new letter` writes a starter `Letter.md`.
 - A test that blocks this process's socket calls around a full render and
   verification, so the claim that pressume makes no network requests is
   enforced rather than stated.

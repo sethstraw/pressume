@@ -22,6 +22,10 @@ class SourceDocument:
         """Return the collision-checked basename used for output files."""
         return self.settings.output_name or self.path.stem
 
+    def is_letter(self, config: Config) -> bool:
+        """Return whether the letter policy governs this document."""
+        return config.rules_for(self.settings).policy == "letter"
+
     def metadata(self, config: Config) -> DocumentMetadata:
         """Return metadata derived for this document and style locale."""
         return derive_metadata(
@@ -29,4 +33,5 @@ class SourceDocument:
             self.settings,
             config.style.language,
             config.style.region,
+            letter=self.is_letter(config),
         )

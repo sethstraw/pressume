@@ -76,6 +76,7 @@ before sending it.
 | --- | --- |
 | `pressume new resume` | Create a starter resume. |
 | `pressume new cv` | Create a starter CV. |
+| `pressume new letter` | Create a starter cover letter. |
 | `pressume preview` | Render a local preview, optionally open it or watch for changes. |
 | `pressume lint` | Validate Markdown without rendering. |
 | `pressume render` | Validate, render, verify, and replace the requested output files. |
@@ -111,8 +112,36 @@ format expects:
   standard policy.
 
 `pressume lint` reports the rule and source line when the document does not
-match the configured format. Academic, international, and minimal policies are
-available for documents that need a different contract.
+match the configured format. Academic, international, minimal, and letter
+policies are available for documents that need a different contract.
+
+## Letters
+
+A cover letter is a document with its own policy. Give it a profile in
+configuration:
+
+```toml
+[[documents]]
+file = "Cover_Letter.md"
+profile = "letter"
+pages = 1
+
+[profiles.letter]
+policy = "letter"
+```
+
+The letter policy keeps the front of the resume contract: one H1 on the first
+line for the name, and the contact paragraph with an email address directly
+after it. Everything after that is prose. The policy empties the section
+vocabulary, so any `##` heading fails as an unknown section, and no section is
+required, labeled, or dated. The Markdown rules and the ban on tables, HTML,
+images, code, blockquotes, footnotes, and numbered lists still apply, as do the
+page target, text, link, metadata, and accessibility checks on the output. A
+date-consistency warning is expected when the letter mentions no dates.
+
+In the PDF, a letter's paragraphs are set apart by a visible gap in every theme
+and density, and its metadata title reads `Name - Letter`. `pressume new
+letter` writes a starter `Letter.md`.
 
 ## Themes and output
 

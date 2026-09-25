@@ -27,7 +27,14 @@ def test_template_passes_default_contract(kind):
     assert failures == []
 
 
-@pytest.mark.parametrize("kind", ["resume", "cv"])
+def test_letter_template_passes_the_letter_contract():
+    rules = DocumentRules()
+    rules.apply_policy("letter")
+    results = lint_document("letter", template_text("letter"), rules)
+    assert [r.detail for r in results if r.severity is Severity.FAIL] == []
+
+
+@pytest.mark.parametrize("kind", ["resume", "cv", "letter"])
 def test_template_is_ascii_clean(kind):
     results = check_source(kind, template_text(kind), Checks())
     assert all(r.severity is Severity.PASS for r in results)
@@ -38,6 +45,12 @@ def test_new_command_writes_template(tmp_path, monkeypatch):
     assert main(["new", "resume"]) == 0
     written = (tmp_path / "Resume.md").read_text(encoding="utf-8")
     assert written == template_text("resume")
+
+
+def test_new_letter_writes_the_letter_template(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert main(["new", "letter"]) == 0
+    assert (tmp_path / "Letter.md").read_text(encoding="utf-8") == template_text("letter")
 
 
 def test_new_command_refuses_overwrite(tmp_path, monkeypatch):
