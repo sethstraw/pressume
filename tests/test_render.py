@@ -21,7 +21,11 @@ from pressume.convert import render_pdf, render_txt
 from pressume.documents import SourceDocument
 from pressume.errors import RenderError
 from pressume.formats import render_artifact, verify_artifact
-from pressume.template import keep_labels_with_lists, strip_thematic_breaks
+from pressume.template import (
+    keep_labels_with_lists,
+    keep_traditional_labels_with_lists,
+    strip_thematic_breaks,
+)
 
 FIXTURE = """\
 # JANE DOE
@@ -110,6 +114,49 @@ def test_thematic_breaks_removed():
 def test_bold_labels_become_sticky_blocks():
     body = "*Flagship project*\n\n- Delivered the first thing.\n"
     assert "#role-label[*Flagship project*]" in keep_labels_with_lists(body)
+
+
+# Pandoc 3 writes a bold paragraph as #strong[...], and a hard break after it as " \".
+@pytest.mark.parametrize("label", ["#strong[Flagship project]", "#strong[Flagship project] \\"])
+def test_pandoc_strong_labels_become_sticky_blocks(label):
+    body = f"{label}\n\n- Delivered the first thing.\n"
+    assert "#role-label[#strong[Flagship project]]\n" in keep_labels_with_lists(body)
+    assert "#block(sticky: true)[#strong[Flagship project]]\n" in (
+        keep_traditional_labels_with_lists(body)
+    )
+
+
+def test_a_strong_paragraph_not_followed_by_a_list_stays_as_written():
+    body = "#strong[Closing note]\n\nA plain paragraph.\n"
+    assert keep_labels_with_lists(body) == body
+
+
+def boundary_fixture(filler: int) -> str:
+    bullets = "\n".join(
+        f"- Delivered synthetic outcome number {n} for the example team." for n in range(filler)
+    )
+    return (
+        "# JANE DOE\n\nCity, Country | jane@example.com\n\n## EXPERIENCE\n\n"
+        "### Senior Role, Example Corp\n\nJanuary 2020 - March 2022\n\n"
+        f"{bullets}\n\n**Synthetic platform work**\n\n"
+        "- First bullet under the label.\n- Second bullet under the label.\n"
+    )
+
+
+# Each filler count leaves the label last on page one when it is not kept with its list.
+@pytest.mark.parametrize(("theme", "filler"), [("modern", 51), ("traditional", 55)])
+def test_a_bold_label_at_a_page_boundary_moves_with_its_first_bullet(tmp_path, theme, filler):
+    from pypdf import PdfReader
+
+    config = make_config(tmp_path)
+    config.style.theme = theme
+    pdf = tmp_path / "out.pdf"
+    render_pdf(boundary_fixture(filler), pdf, config)
+    pages = [page.extract_text() or "" for page in PdfReader(pdf).pages]
+    label_pages = [i for i, text in enumerate(pages) if "Synthetic platform work" in text]
+    bullet_pages = [i for i, text in enumerate(pages) if "First bullet under the label" in text]
+    assert len(pages) == 2
+    assert label_pages == bullet_pages
 
 
 @pytest.mark.parametrize("standard", PDF_STANDARDS)

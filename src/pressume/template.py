@@ -10,7 +10,8 @@ from pressume.config import Style
 from pressume.metadata import DocumentMetadata
 from pressume.themes import DENSITY_FACTORS, THEMES, Theme
 
-BOLD_LABEL = re.compile(r"^\*[^*\n]+\*\\?$")
+# Pandoc 3 writes a bold paragraph as #strong[...]; earlier releases wrote *...*.
+BOLD_LABEL = re.compile(r"^(\*[^*\n]+\*|#strong\[[^\]\n]+\])\s*\\?$")
 THEMATIC_BREAK = re.compile(r"^-{3,}\s*$")
 SECTION = re.compile(r"^==\s+(.+?)\s*$")
 ROLE = re.compile(r"^===\s+(.+?)\s*$")
@@ -87,15 +88,15 @@ def keep_labels_with_lists(typst_body: str) -> str:
     lines = typst_body.splitlines()
     out: list[str] = []
     for index, line in enumerate(lines):
-        is_label = bool(BOLD_LABEL.match(line.strip()))
+        label = BOLD_LABEL.match(line.strip())
         followed_by_list = False
         for later in lines[index + 1 :]:
             if later.strip() == "":
                 continue
             followed_by_list = later.lstrip().startswith("- ")
             break
-        if is_label and followed_by_list:
-            out.append(f"#role-label[{line.strip().rstrip(chr(92))}]")
+        if label and followed_by_list:
+            out.append(f"#role-label[{label.group(1)}]")
         else:
             out.append(line)
     return "\n".join(out) + "\n"
@@ -117,8 +118,9 @@ def keep_traditional_labels_with_lists(typst_body: str) -> str:
             if later.strip():
                 followed_by_list = later.lstrip().startswith("- ")
                 break
-        if BOLD_LABEL.match(line.strip()) and followed_by_list:
-            output.append(f"#block(sticky: true)[{line.strip().rstrip(chr(92))}]")
+        label = BOLD_LABEL.match(line.strip())
+        if label and followed_by_list:
+            output.append(f"#block(sticky: true)[{label.group(1)}]")
         elif (
             line.strip()
             and not ANCHOR.match(line.strip())
