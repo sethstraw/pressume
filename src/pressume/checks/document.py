@@ -13,7 +13,8 @@ the resume itself, not the Markdown dialect.
 The contract:
 
 - One H1, first line of the file: the candidate's name.
-- Immediately after it, a contact paragraph containing the email address.
+- Immediately after it, an optional contact paragraph without emphasis. Email
+  and phone are optional, so a public copy can leave them out.
 - Every section is an H2 drawn from the configured vocabulary, in the
   vocabulary's order.
 - H3 headings exist only inside sections that declare them (roles inside
@@ -46,7 +47,6 @@ BULLET = re.compile(r"^(?P<indent>\s*)(?P<marker>[-*+])(?P<gap>\s+)")
 LABELED_LINE = re.compile(r"^\*\*[^*:]+:\*\* \S.*$")
 ORDERED_ITEM = re.compile(r"^\s*\d+[.)] ")
 HTML_TAG = re.compile(r"<[A-Za-z/!][^>]*>")
-EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 SETEXT_UNDERLINE = re.compile(r"^\s*(=+|-+)\s*$")
 THEMATIC_BREAK = re.compile(r"^-{3,}\s*$")
 
@@ -149,9 +149,9 @@ class DocumentRules:
     # Sections where ordered lists are allowed. Empty for resumes; a CV numbers
     # its citations.
     ordered_list_sections: list[str] = field(default_factory=list)
-    # True requires the email in the paragraph directly after the name. False
-    # accepts a contact block anywhere before the first section, which is how
-    # a full CV lays out its front matter.
+    # True reads the paragraph directly after the name as the contact line and
+    # keeps emphasis out of it. False accepts a contact block of any shape
+    # before the first section, which is how a full CV lays out its front matter.
     contact_after_name: bool = True
     # Sections whose entries are records: every entry must carry a year, on its
     # own line or in a labeled sub-bullet. An undated credential, publication,
@@ -346,20 +346,10 @@ def _structure_rules(
             (line for line in lines[h1_lines[0] :] if line.strip()),
             "",
         )
-        if contact_line.startswith("#"):
-            findings.append("S1 no contact paragraph: a heading follows the name directly")
-        elif not EMAIL.search(contact_line):
-            findings.append("S1 the paragraph after the name must contain the email address")
-        elif "**" in contact_line or "*" in contact_line.replace("**", ""):
+        if not contact_line.startswith("#") and (
+            "**" in contact_line or "*" in contact_line.replace("**", "")
+        ):
             findings.append("S1 the contact paragraph carries no emphasis markup")
-    elif h1_lines:
-        front_matter = []
-        for line in lines[h1_lines[0] :]:
-            if H2.match(line):
-                break
-            front_matter.append(line)
-        if not EMAIL.search("\n".join(front_matter)):
-            findings.append("S1 the email address must appear before the first section")
 
     seen_sections: list[tuple[str, int]] = []
     current_section = ""

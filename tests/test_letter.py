@@ -55,14 +55,14 @@ def test_resume_section_rules_do_not_fire_on_a_letter():
     assert not any("S2" in detail for detail in failures(LETTER, letter_rules()))
 
 
-def test_letter_policy_requires_the_name_line_and_contact_paragraph():
+def test_letter_policy_requires_the_name_line_but_not_an_email():
     without_name = LETTER.split("\n", 2)[2]
     found = failures(without_name, letter_rules())
     assert any("MD025" in detail for detail in found)
     assert any("MD041" in detail for detail in found)
 
     without_email = LETTER.replace("jane@example.com | ", "")
-    assert any("S1" in detail for detail in failures(without_email, letter_rules()))
+    assert not any("S1" in detail for detail in failures(without_email, letter_rules()))
 
 
 def test_a_letter_has_no_sections():

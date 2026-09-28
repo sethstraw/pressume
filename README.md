@@ -103,7 +103,8 @@ The bundled templates are the easiest place to start. The standard resume
 format expects:
 
 - one H1 on the first line for the candidate's name;
-- contact information immediately after the name, including an email address;
+- an optional contact line immediately after the name; email and phone are
+  optional, so a public copy can leave them out;
 - H2 section headings in a conventional order;
 - H3 headings for roles inside experience sections;
 - skills written as `**Label:** content`;
@@ -131,8 +132,8 @@ policy = "letter"
 ```
 
 The letter policy keeps the front of the resume contract: one H1 on the first
-line for the name, and the contact paragraph with an email address directly
-after it. Everything after that is prose. The policy empties the section
+line for the name, and the contact paragraph directly after it. Everything
+after that is prose. The policy empties the section
 vocabulary, so any `##` heading fails as an unknown section, and no section is
 required, labeled, or dated. The Markdown rules and the ban on tables, HTML,
 images, code, blockquotes, footnotes, and numbered lists still apply, as do the

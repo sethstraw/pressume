@@ -18,6 +18,10 @@ Notable user-visible changes are recorded here. This project uses
 - `pressume init` documents the settings it had been leaving out: `profile`,
   `lint_only`, `ordered_list_sections`, `dated_sections`,
   `citation_field_labels`, `max_heading_level`, and `contact_after_name`.
+- A resume or letter no longer needs an email address, and a resume may have
+  no contact line at all, so a public copy can leave out personal contact
+  details. A contact line that is present still carries no emphasis, and
+  configured contact values are still checked in the output.
 
 ### Fixed
 

@@ -91,8 +91,19 @@ def test_h3_outside_subheading_section_fails():
     assert any("S3" in f for f in findings(broken))
 
 
-def test_contact_paragraph_must_carry_email():
-    broken = CONFORMING.replace("City, Country | jane@example.com | 555-123-4567", "City, Country")
+def test_contact_paragraph_may_leave_out_email_and_phone():
+    public = CONFORMING.replace("City, Country | jane@example.com | 555-123-4567", "City, Country")
+    assert findings(public) == []
+    assert findings(public, CV_RULES) == []
+
+
+def test_a_resume_may_have_no_contact_paragraph():
+    public = CONFORMING.replace("City, Country | jane@example.com | 555-123-4567\n\n", "")
+    assert findings(public) == []
+
+
+def test_contact_paragraph_carries_no_emphasis():
+    broken = CONFORMING.replace("City, Country |", "*City, Country* |")
     assert any("S1" in f for f in findings(broken))
 
 
@@ -281,10 +292,10 @@ def test_unknown_citation_label_fails():
     assert any("S8" in f and "Published on" in f for f in findings(document, CV_RULES))
 
 
-def test_contact_block_before_first_section_satisfies_cv_profile():
+def test_cv_profile_does_not_hold_a_contact_block_to_the_emphasis_rule():
     document = CONFORMING.replace(
         "City, Country | jane@example.com | 555-123-4567",
-        "City, Country\n\nEmail: jane@example.com",
+        "*City, Country*\n\nEmail: jane@example.com",
     )
     assert not any("S1" in f for f in findings(document, CV_RULES))
     assert any("S1" in f for f in findings(document, RULES))
