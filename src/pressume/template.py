@@ -329,7 +329,7 @@ def build_document(
 #show link: it => it
 
 // Name.
-#show heading.where(level: 1): it => block(sticky: true, above: 0em, below: {1.35 * density:.3f}em)[
+#show heading.where(level: 1): it => block(sticky: true, above: 0em, below: {0.90 * density:.3f}em)[
   #text(size: {theme.name_scale:.3f}em, weight: "semibold", fill: accent)[#it.body]
 ]
 

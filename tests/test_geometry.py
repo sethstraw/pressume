@@ -155,6 +155,27 @@ def test_heading_collisions_are_detected(tmp_path, monkeypatch):
     assert "JANE DOE" in details(findings, "heading-collision")
 
 
+def test_modern_header_and_bullet_spacing(tmp_path):
+    markdown = geometry.read_fixture(FIXTURE).replace(
+        "- Designed the shared clinical data model four product teams now build on.",
+        "- Designed the shared clinical data model that four product teams now build on, "
+        "with a longer sentence about records, delivery, and consistent fields across "
+        "all of their clinical workflows.",
+    )
+    _pdf, observed = render(tmp_path, markdown, "spacing")
+    lines = observed.page_lines(1)
+    name = next(line for line in lines if line.text == "JANE DOE")
+    contact = next(line for line in lines if "jane@example.com" in line.text)
+    first = next(line for line in lines if line.text.startswith("• Designed"))
+    continuation = lines[lines.index(first) + 1]
+    second = next(line for line in lines if line.text.startswith("• Cut nightly"))
+
+    assert 3.0 <= name.bottom - contact.top <= 9.0
+    assert second.page == first.page == continuation.page
+    assert second.top < continuation.top
+    assert continuation.bottom - second.top > first.bottom - continuation.top + 1.0
+
+
 def test_a_stranded_heading_is_detected(tmp_path):
     """A heading alone at the bottom of a page, with its content overleaf.
 
