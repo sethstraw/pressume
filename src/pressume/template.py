@@ -320,7 +320,7 @@ def build_document(
   )
   #text(size: {theme.citation_scale:.3f}em)[#body]
 ]
-#let record(body) = block(above: 0em, below: {0.12 * density:.3f}em)[
+#let record(body) = block(above: 0em, below: {0.56 * density:.3f}em)[
   #set par(leading: {0.42 * density:.3f}em, spacing: 0em)
   #text(size: 0.96em)[#body]
 ]

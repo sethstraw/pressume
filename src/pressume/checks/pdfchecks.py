@@ -29,6 +29,7 @@ from pressume.checks.textrules import (
 from pressume.config import Checks
 from pressume.links import linkify_markdown
 from pressume.metadata import DocumentMetadata
+from pressume.template import RECORD_SECTIONS
 
 LINK_TARGET = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 TOKEN = re.compile(r"\w+", re.UNICODE)
@@ -164,13 +165,12 @@ def _extract_line_geometry(pdf_path: Path) -> list[tuple[str, float, float, int]
 
 
 def check_visual_relationships(name: str, pdf_path: Path, markdown: str) -> CheckResult:
-    """Grade the white space around headings.
+    """Grade heading clearances and spacing within record sections.
 
     Fails a line under 1.0 pt below a name or section heading, or 0.5 pt below
     a role heading. A line above a section heading, which carries a rule,
-    fails under 2.0 pt and warns under 3.0 pt. Ordinary body lines are not
-    measured, since their font boxes routinely overlap without the glyphs
-    touching.
+    fails under 2.0 pt and warns under 3.0 pt. Record sections also require
+    clearance between adjacent lines; ordinary body lines are not measured.
     """
     try:
         lines = _extract_line_geometry(pdf_path)
@@ -183,10 +183,27 @@ def check_visual_relationships(name: str, pdf_path: Path, markdown: str) -> Chec
     collisions: list[str] = []
     crowding: list[str] = []
     checked = 0
+    current_section = ""
     # PDF coordinates grow upward, so a clearance is the upper line's bottom
     # edge minus the lower line's top edge.
     for index, (line_text, top, bottom, page_number) in enumerate(lines):
         level = levels.get(line_text.casefold())
+        if level == 2:
+            current_section = line_text.casefold()
+        if (
+            level is None
+            and current_section in RECORD_SECTIONS
+            and index + 1 < len(lines)
+            and lines[index + 1][3] == page_number
+            and levels.get(lines[index + 1][0].casefold()) is None
+        ):
+            next_text, next_top, _next_bottom, _next_page = lines[index + 1]
+            gap = bottom - next_top
+            checked += 1
+            if gap < 0.25:
+                collisions.append(
+                    f"{line_text!r} -> {next_text!r}: {gap:.2f}pt (record minimum 0.25pt)"
+                )
         if level is None:
             continue
         if index + 1 < len(lines) and lines[index + 1][3] == page_number:

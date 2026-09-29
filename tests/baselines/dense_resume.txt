@@ -60,11 +60,11 @@ pages 2
 1 169.9 159.9 39.6 316.0 10.0 SourceSans3-Regular \u2022 Taught the introductory data management workshop each
 1 149.5 137.3 39.6 105.8 12.2 SourceSans3-Semibold EDUCATION
 1 128.0 118.4 39.6 300.7 9.6 SourceSans3-Bold Master of Science, Health Informatics, Example University, 2
-1 120.4 110.8 39.6 307.0 9.6 SourceSans3-Bold Bachelor of Science, Computer Science, Example University, 2
-1 100.3 88.1 39.6 133.5 12.2 SourceSans3-Semibold CERTIFICATIONS
-1 78.8 68.8 39.6 308.9 10.0 SourceSans3-Regular \u2022 Certified Health Data Analyst, Example Certification
-1 67.2 57.2 39.6 342.1 10.0 SourceSans3-Regular \u2022 Terminology Standards Practitioner, Example Standards
-1 55.6 45.6 39.6 303.4 10.0 SourceSans3-Regular \u2022 Clinical Data Management Certificate, Example Institu
+1 116.0 106.4 39.6 307.0 9.6 SourceSans3-Bold Bachelor of Science, Computer Science, Example University, 2
+1 95.9 83.7 39.6 133.5 12.2 SourceSans3-Semibold CERTIFICATIONS
+1 74.4 64.4 39.6 308.9 10.0 SourceSans3-Regular \u2022 Certified Health Data Analyst, Example Certification
+1 62.8 52.8 39.6 342.1 10.0 SourceSans3-Regular \u2022 Terminology Standards Practitioner, Example Standards
+1 51.2 41.2 39.6 303.4 10.0 SourceSans3-Regular \u2022 Clinical Data Management Certificate, Example Institu
 2 752.5 742.5 39.6 316.0 10.0 SourceSans3-Regular \u2022 Cloud Data Engineering Associate, Example Cloud Provi
 2 732.2 719.9 39.6 136.0 12.2 SourceSans3-Semibold SELECTED TALKS
 2 710.6 700.6 39.6 314.4 10.0 SourceSans3-Regular \u2022 Data contracts in regulated pipelines, Example Confer
@@ -128,14 +128,14 @@ pages 2
 1 219.8 209.8 39.6 316.0 10.0 SourceSans3-Regular \u2022 Taught the introductory data management workshop each
 1 199.4 187.2 39.6 105.8 12.2 SourceSans3-Semibold EDUCATION
 1 177.8 168.2 39.6 300.7 9.6 SourceSans3-Bold Master of Science, Health Informatics, Example University, 2
-1 170.3 160.7 39.6 307.0 9.6 SourceSans3-Bold Bachelor of Science, Computer Science, Example University, 2
-1 150.2 138.0 39.6 133.5 12.2 SourceSans3-Semibold CERTIFICATIONS
-1 128.7 118.7 39.6 308.9 10.0 SourceSans3-Regular \u2022 Certified Health Data Analyst, Example Certification
-1 117.1 107.1 39.6 342.1 10.0 SourceSans3-Regular \u2022 Terminology Standards Practitioner, Example Standards
-1 105.5 95.5 39.6 303.4 10.0 SourceSans3-Regular \u2022 Clinical Data Management Certificate, Example Institu
-1 93.9 83.9 39.6 316.0 10.0 SourceSans3-Regular \u2022 Cloud Data Engineering Associate, Example Cloud Provi
-1 73.5 61.3 39.6 136.0 12.2 SourceSans3-Semibold SELECTED TALKS
-1 51.9 41.9 39.6 314.4 10.0 SourceSans3-Regular \u2022 Data contracts in regulated pipelines, Example Confer
+1 165.9 156.3 39.6 307.0 9.6 SourceSans3-Bold Bachelor of Science, Computer Science, Example University, 2
+1 145.8 133.6 39.6 133.5 12.2 SourceSans3-Semibold CERTIFICATIONS
+1 124.3 114.3 39.6 308.9 10.0 SourceSans3-Regular \u2022 Certified Health Data Analyst, Example Certification
+1 112.7 102.7 39.6 342.1 10.0 SourceSans3-Regular \u2022 Terminology Standards Practitioner, Example Standards
+1 101.1 91.1 39.6 303.4 10.0 SourceSans3-Regular \u2022 Clinical Data Management Certificate, Example Institu
+1 89.5 79.5 39.6 316.0 10.0 SourceSans3-Regular \u2022 Cloud Data Engineering Associate, Example Cloud Provi
+1 69.1 56.9 39.6 136.0 12.2 SourceSans3-Semibold SELECTED TALKS
+1 47.5 37.5 39.6 314.4 10.0 SourceSans3-Regular \u2022 Data contracts in regulated pipelines, Example Confer
 2 802.4 792.4 39.6 289.9 10.0 SourceSans3-Regular \u2022 Terminology mapping at scale, Example Symposium, 2022
 2 790.8 780.8 39.6 286.9 10.0 SourceSans3-Regular \u2022 Instrument data in the warehouse, Example Meetup, 202
 2 779.2 769.2 39.6 291.3 10.0 SourceSans3-Regular \u2022 Schema tests as a delivery gate, Example Conference,
@@ -196,25 +196,25 @@ pages 2
 1 154.7 144.7 39.6 335.0 10.0 IBMPlexSans \u2022 Taught the introductory data management workshop each
 1 134.1 121.9 39.6 113.9 12.2 IBMPlexSans-Bold EDUCATION
 1 111.9 102.3 39.6 324.3 9.6 IBMPlexSans-Bold Master of Science, Health Informatics, Example University, 2
-1 104.0 94.4 39.6 330.4 9.6 IBMPlexSans-Bold Bachelor of Science, Computer Science, Example University, 2
-1 83.8 71.5 39.6 148.0 12.2 IBMPlexSans-Bold CERTIFICATIONS
-1 61.6 51.6 39.6 333.6 10.0 IBMPlexSans \u2022 Certified Health Data Analyst, Example Certification
-1 49.6 39.6 39.6 368.7 10.0 IBMPlexSans \u2022 Terminology Standards Practitioner, Example Standards
-2 753.2 743.2 39.6 328.6 10.0 IBMPlexSans \u2022 Clinical Data Management Certificate, Example Institu
-2 741.2 731.2 39.6 340.1 10.0 IBMPlexSans \u2022 Cloud Data Engineering Associate, Example Cloud Provi
-2 720.6 708.4 39.6 147.0 12.2 IBMPlexSans-Bold SELECTED TALKS
-2 698.5 688.5 39.6 340.2 10.0 IBMPlexSans \u2022 Data contracts in regulated pipelines, Example Confer
-2 686.5 676.5 39.6 311.1 10.0 IBMPlexSans \u2022 Terminology mapping at scale, Example Symposium, 2022
-2 674.5 664.5 39.6 310.8 10.0 IBMPlexSans \u2022 Instrument data in the warehouse, Example Meetup, 202
-2 662.5 652.5 39.6 316.4 10.0 IBMPlexSans \u2022 Schema tests as a delivery gate, Example Conference,
-2 650.6 640.6 39.6 341.2 10.0 IBMPlexSans \u2022 Migrating eleven feeds without a gap, Example Symposi
-2 630.0 617.7 39.6 249.5 12.2 IBMPlexSans-Bold PROFESSIONAL ORGANIZATIONS
-2 607.8 597.8 39.6 339.0 10.0 IBMPlexSans \u2022 Example Association for Health Informatics, member si
-2 595.8 585.8 39.6 352.8 10.0 IBMPlexSans \u2022 Example Society for Clinical Data Management, member
-2 575.2 563.0 39.6 94.5 12.2 IBMPlexSans-Bold SERVICE
-2 553.0 543.0 39.6 365.2 10.0 IBMPlexSans \u2022 Peer reviewer, Example Journal of Health Informatics,
-2 541.1 531.1 39.6 324.4 10.0 IBMPlexSans \u2022 Programme committee, Example Conference, 2022 and 202
-2 529.1 519.1 39.6 335.0 10.0 IBMPlexSans \u2022 Mentor, Example Data Engineering Programme, 2020 to p
+1 99.6 90.0 39.6 330.4 9.6 IBMPlexSans-Bold Bachelor of Science, Computer Science, Example University, 2
+1 79.4 67.1 39.6 148.0 12.2 IBMPlexSans-Bold CERTIFICATIONS
+1 57.2 47.2 39.6 333.6 10.0 IBMPlexSans \u2022 Certified Health Data Analyst, Example Certification
+2 753.2 743.2 39.6 368.7 10.0 IBMPlexSans \u2022 Terminology Standards Practitioner, Example Standards
+2 741.2 731.2 39.6 328.6 10.0 IBMPlexSans \u2022 Clinical Data Management Certificate, Example Institu
+2 729.3 719.3 39.6 340.1 10.0 IBMPlexSans \u2022 Cloud Data Engineering Associate, Example Cloud Provi
+2 708.7 696.4 39.6 147.0 12.2 IBMPlexSans-Bold SELECTED TALKS
+2 686.5 676.5 39.6 340.2 10.0 IBMPlexSans \u2022 Data contracts in regulated pipelines, Example Confer
+2 674.5 664.5 39.6 311.1 10.0 IBMPlexSans \u2022 Terminology mapping at scale, Example Symposium, 2022
+2 662.5 652.5 39.6 310.8 10.0 IBMPlexSans \u2022 Instrument data in the warehouse, Example Meetup, 202
+2 650.6 640.6 39.6 316.4 10.0 IBMPlexSans \u2022 Schema tests as a delivery gate, Example Conference,
+2 638.6 628.6 39.6 341.2 10.0 IBMPlexSans \u2022 Migrating eleven feeds without a gap, Example Symposi
+2 618.0 605.7 39.6 249.5 12.2 IBMPlexSans-Bold PROFESSIONAL ORGANIZATIONS
+2 595.8 585.8 39.6 339.0 10.0 IBMPlexSans \u2022 Example Association for Health Informatics, member si
+2 583.8 573.8 39.6 352.8 10.0 IBMPlexSans \u2022 Example Society for Clinical Data Management, member
+2 563.2 551.0 39.6 94.5 12.2 IBMPlexSans-Bold SERVICE
+2 541.1 531.1 39.6 365.2 10.0 IBMPlexSans \u2022 Peer reviewer, Example Journal of Health Informatics,
+2 529.1 519.1 39.6 324.4 10.0 IBMPlexSans \u2022 Programme committee, Example Conference, 2022 and 202
+2 517.1 507.1 39.6 335.0 10.0 IBMPlexSans \u2022 Mentor, Example Data Engineering Programme, 2020 to p
 
 [technical a4]
 paper 595.3 841.9
@@ -264,12 +264,12 @@ pages 2
 1 204.6 194.6 39.6 335.0 10.0 IBMPlexSans \u2022 Taught the introductory data management workshop each
 1 184.0 171.8 39.6 113.9 12.2 IBMPlexSans-Bold EDUCATION
 1 161.8 152.2 39.6 324.3 9.6 IBMPlexSans-Bold Master of Science, Health Informatics, Example University, 2
-1 153.9 144.3 39.6 330.4 9.6 IBMPlexSans-Bold Bachelor of Science, Computer Science, Example University, 2
-1 133.7 121.4 39.6 148.0 12.2 IBMPlexSans-Bold CERTIFICATIONS
-1 111.5 101.5 39.6 333.6 10.0 IBMPlexSans \u2022 Certified Health Data Analyst, Example Certification
-1 99.5 89.5 39.6 368.7 10.0 IBMPlexSans \u2022 Terminology Standards Practitioner, Example Standards
-1 87.5 77.5 39.6 328.6 10.0 IBMPlexSans \u2022 Clinical Data Management Certificate, Example Institu
-1 75.5 65.5 39.6 340.1 10.0 IBMPlexSans \u2022 Cloud Data Engineering Associate, Example Cloud Provi
+1 149.5 139.9 39.6 330.4 9.6 IBMPlexSans-Bold Bachelor of Science, Computer Science, Example University, 2
+1 129.3 117.0 39.6 148.0 12.2 IBMPlexSans-Bold CERTIFICATIONS
+1 107.1 97.1 39.6 333.6 10.0 IBMPlexSans \u2022 Certified Health Data Analyst, Example Certification
+1 95.1 85.1 39.6 368.7 10.0 IBMPlexSans \u2022 Terminology Standards Practitioner, Example Standards
+1 83.1 73.1 39.6 328.6 10.0 IBMPlexSans \u2022 Clinical Data Management Certificate, Example Institu
+1 71.1 61.1 39.6 340.1 10.0 IBMPlexSans \u2022 Cloud Data Engineering Associate, Example Cloud Provi
 2 803.3 791.1 39.6 147.0 12.2 IBMPlexSans-Bold SELECTED TALKS
 2 781.1 771.1 39.6 340.2 10.0 IBMPlexSans \u2022 Data contracts in regulated pipelines, Example Confer
 2 769.1 759.1 39.6 311.1 10.0 IBMPlexSans \u2022 Terminology mapping at scale, Example Symposium, 2022

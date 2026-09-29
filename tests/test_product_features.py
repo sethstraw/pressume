@@ -349,6 +349,22 @@ def test_visual_relationship_check_rejects_heading_collisions(tmp_path):
     assert "JANE DOE" in result.detail
 
 
+def test_visual_relationship_check_rejects_overlapping_education_records(tmp_path):
+    from reportlab.pdfgen import canvas
+
+    pdf = tmp_path / "records.pdf"
+    page = canvas.Canvas(str(pdf), pagesize=(612, 792))
+    page.setFont("Helvetica", 10)
+    page.drawString(36, 690, "EDUCATION")
+    page.drawString(36, 670, "Master of Science, Example University, 2019")
+    page.drawString(36, 663, "Bachelor of Science, Example University, 2017")
+    page.save()
+
+    result = check_visual_relationships("resume", pdf, RESUME)
+    assert result.severity.value == "fail"
+    assert "record minimum" in result.detail
+
+
 @pytest.mark.parametrize(("clearance", "severity"), [(1.5, "fail"), (2.5, "warn"), (3.7, "pass")])
 def test_visual_relationship_check_grades_text_crowding_a_section_rule(
     tmp_path, clearance, severity
