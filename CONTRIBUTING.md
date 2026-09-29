@@ -59,7 +59,8 @@ seconds.
 Each configuration is asserted twice. The recorded baseline still describes
 what the renderer produces, and the page holds invariants that need no baseline
 at all: nothing runs past the text region or off the paper, no heading collides
-with the line beneath it, no heading is stranded at the bottom of a page, no
+with the line beneath it, no line crowds within 2.0 pt of the section heading
+beneath it, no heading is stranded at the bottom of a page, no
 final page is nearly blank, and headings still outrank body text in size and
 weight.
 

@@ -221,7 +221,8 @@ For PDF output, pressume checks the requested page count or range, compares text
 from two independent extractors, and checks character policy, required and
 protected wording, contact details, section order, dates, metadata, document
 language, hyperlink annotations, tagged accessibility structure, and spacing
-after important headings.
+around important headings. The line above a section heading and its rule fails
+under 2.0 pt of clearance and warns under 3.0 pt.
 
 For TXT output, it checks the extracted text and exact-string rules. For DOCX,
 it reopens the OOXML package and checks linear structure, text order, links, and
@@ -230,7 +231,9 @@ applications do not all paginate identically.
 
 `pressume inspect` is advisory. It points out things such as long bullets,
 repeated openings, crowded pages, stranded headings, and sparse endings, but it
-does not block an otherwise valid document.
+does not block an otherwise valid document. For a document with an exact `pages`
+target, a final page whose text spans under 85% of the median height of the
+pages before it also counts as a sparse ending.
 
 ## Privacy and safety
 

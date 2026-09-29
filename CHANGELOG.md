@@ -41,6 +41,14 @@ Notable user-visible changes are recorded here. This project uses
   one block, and its metadata title reads `Name - Letter`. Resume and CV
   output is unchanged.
 - `pressume new letter` writes a starter `Letter.md`.
+- The PDF visual-relationship check measures the line above each section
+  heading and its rule, failing under 2.0 pt of clearance and warning under
+  3.0 pt. Every shipped template and fixture clears it in every theme, density,
+  and paper size.
+- `pressume inspect` reports a final page as lightly filled when the document
+  has an exact `pages` target and the final page's text spans under 85% of the
+  median height of the pages before it. The warning gives that ratio. Without
+  an exact target the check is unchanged.
 - A test that blocks this process's socket calls around a full render and
   verification, so the claim that pressume makes no network requests is
   enforced rather than stated.

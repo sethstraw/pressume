@@ -61,14 +61,22 @@ def inspect_source(name: str, markdown: str) -> list[CheckResult]:
     ]
 
 
-def inspect_pdf_layout(name: str, pdf_path: Path, markdown: str) -> list[CheckResult]:
-    """Report dense pages, sparse endings, and headings stranded at page bottoms."""
+def inspect_pdf_layout(
+    name: str, pdf_path: Path, markdown: str, pages: int | None = None
+) -> list[CheckResult]:
+    """Report dense pages, sparse endings, and headings stranded at page bottoms.
+
+    With an exact ``pages`` target, a final page whose text spans under 85% of
+    the preceding pages' median height is also reported as lightly filled.
+    """
     with pdf_path.open("rb") as stream:
         reader = PdfReader(stream)
-        return _inspect_pages(name, reader, markdown)
+        return _inspect_pages(name, reader, markdown, pages)
 
 
-def _inspect_pages(name: str, reader: PdfReader, markdown: str) -> list[CheckResult]:
+def _inspect_pages(
+    name: str, reader: PdfReader, markdown: str, pages: int | None
+) -> list[CheckResult]:
     headings = {
         match.group(1).strip().casefold()
         for line in markdown.splitlines()
@@ -76,6 +84,7 @@ def _inspect_pages(name: str, reader: PdfReader, markdown: str) -> list[CheckRes
     }
     warnings: list[str] = []
     word_counts: list[int] = []
+    extents: list[float] = []
 
     for page_number, page in enumerate(reader.pages, start=1):
         text = page.extract_text() or ""
@@ -102,9 +111,11 @@ def _inspect_pages(name: str, reader: PdfReader, markdown: str) -> list[CheckRes
                     positions.append((y, float(size)))
 
         page.extract_text(visitor_text=visit)
+        extents.append(0.0)
         if positions:
             top = max(y + size for y, size in positions)
             bottom = min(y for y, _ in positions)
+            extents[-1] = top - bottom
             fill = (top - bottom) / height
             if fill > 0.91 or len(lines) > 72:
                 warnings.append(
@@ -120,11 +131,16 @@ def _inspect_pages(name: str, reader: PdfReader, markdown: str) -> list[CheckRes
                 f"page {page_number}: heading is stranded at the page bottom: {lines[-1]}"
             )
 
-    if len(word_counts) > 1 and word_counts[-1] < statistics.median(word_counts[:-1]) * 0.28:
-        warnings.append(
-            f"final page is lightly filled ({word_counts[-1]} words versus "
-            f"{statistics.median(word_counts[:-1]):.0f} on preceding pages)"
-        )
+    if len(word_counts) > 1:
+        preceding_words = statistics.median(word_counts[:-1])
+        preceding_extent = statistics.median(extents[:-1])
+        extent_ratio = extents[-1] / preceding_extent if preceding_extent else 1.0
+        short = pages is not None and extent_ratio < 0.85
+        if short or word_counts[-1] < preceding_words * 0.28:
+            detail = f"{word_counts[-1]} words versus {preceding_words:.0f} on preceding pages"
+            if pages is not None:
+                detail += f"; text height {extent_ratio:.0%} of their median"
+            warnings.append(f"final page is lightly filled ({detail})")
 
     if not warnings:
         return [CheckResult(name, "readability: page balance", Severity.PASS)]

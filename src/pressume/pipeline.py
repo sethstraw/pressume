@@ -236,7 +236,9 @@ def inspect_existing(config: Config, names: list[str], as_json: bool = False) ->
         results.extend(inspect_source(source.stem, source.markdown))
         pdf = output_dir / f"{source.stem}.pdf"
         if pdf.is_file():
-            results.extend(inspect_pdf_layout(source.stem, pdf, source.markdown))
+            results.extend(
+                inspect_pdf_layout(source.stem, pdf, source.markdown, source.settings.pages)
+            )
         elif not source.settings.lint_only:
             results.append(
                 CheckResult(

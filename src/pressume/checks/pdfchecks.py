@@ -164,43 +164,55 @@ def _extract_line_geometry(pdf_path: Path) -> list[tuple[str, float, float, int]
 
 
 def check_visual_relationships(name: str, pdf_path: Path, markdown: str) -> CheckResult:
-    """Reject collisions immediately below names, sections, and role headings.
+    """Grade the white space around headings.
 
-    Font bounding boxes routinely overlap slightly on ordinary consecutive
-    body lines even when their glyphs do not. Heading transitions are different:
-    they need deliberate white space and are stable semantic relationships we
-    can verify without mistaking normal leading for a collision.
+    Fails a line under 1.0 pt below a name or section heading, or 0.5 pt below
+    a role heading. A line above a section heading, which carries a rule,
+    fails under 2.0 pt and warns under 3.0 pt. Ordinary body lines are not
+    measured, since their font boxes routinely overlap without the glyphs
+    touching.
     """
     try:
         lines = _extract_line_geometry(pdf_path)
     except Exception as error:  # independent geometry-parser boundary
         return CheckResult(name, "pdf: visual relationships", Severity.WARN, str(error))
 
+    levels: dict[str, int] = {}
+    for marker, text in MARKDOWN_HEADING.findall(markdown):
+        levels.setdefault(text.strip().casefold(), len(marker))
     collisions: list[str] = []
+    crowding: list[str] = []
     checked = 0
-    headings = [(len(marker), text.strip()) for marker, text in MARKDOWN_HEADING.findall(markdown)]
-    for level, heading in headings:
-        minimum_gap = 1.0 if level in {1, 2} else 0.5
-        for index, (line_text, _top, bottom, page_number) in enumerate(lines[:-1]):
-            if line_text.casefold() != heading.casefold():
-                continue
-            next_text, next_top, _next_bottom, next_page = lines[index + 1]
-            if next_page != page_number:
-                continue
-            # PDF coordinates grow upward: the clearance below a heading is
-            # its bottom edge minus the top edge of the line beneath it.
+    # PDF coordinates grow upward, so a clearance is the upper line's bottom
+    # edge minus the lower line's top edge.
+    for index, (line_text, top, bottom, page_number) in enumerate(lines):
+        level = levels.get(line_text.casefold())
+        if level is None:
+            continue
+        if index + 1 < len(lines) and lines[index + 1][3] == page_number:
+            next_text, next_top, _next_bottom, _next_page = lines[index + 1]
+            minimum_gap = 1.0 if level in {1, 2} else 0.5
             gap = bottom - next_top
             checked += 1
             if gap < minimum_gap:
                 collisions.append(
-                    f"{heading!r} -> {next_text!r}: {gap:.2f}pt (minimum {minimum_gap:.1f}pt)"
+                    f"{line_text!r} -> {next_text!r}: {gap:.2f}pt (minimum {minimum_gap:.1f}pt)"
                 )
-            break
+        if level == 2 and index > 0 and lines[index - 1][3] == page_number:
+            previous_text, _previous_top, previous_bottom, _previous_page = lines[index - 1]
+            gap = previous_bottom - top
+            checked += 1
+            detail = f"{previous_text!r} above {line_text!r}: {gap:.2f}pt"
+            if gap < 2.0:
+                collisions.append(f"{detail} (minimum 2.0pt)")
+            elif gap < 3.0:
+                crowding.append(f"{detail} (below 3.0pt)")
+    severity = Severity.FAIL if collisions else Severity.WARN if crowding else Severity.PASS
     return CheckResult(
         name,
         "pdf: visual relationships",
-        Severity.FAIL if collisions else Severity.PASS,
-        "; ".join(collisions) if collisions else f"{checked} heading transition(s) clear",
+        severity,
+        "; ".join(collisions + crowding) or f"{checked} heading transition(s) clear",
     )
 
 

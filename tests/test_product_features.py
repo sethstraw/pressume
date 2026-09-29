@@ -349,6 +349,66 @@ def test_visual_relationship_check_rejects_heading_collisions(tmp_path):
     assert "JANE DOE" in result.detail
 
 
+@pytest.mark.parametrize(("clearance", "severity"), [(1.5, "fail"), (2.5, "warn"), (3.7, "pass")])
+def test_visual_relationship_check_grades_text_crowding_a_section_rule(
+    tmp_path, clearance, severity
+):
+    from reportlab.pdfgen import canvas
+
+    pdf = tmp_path / "above.pdf"
+    page = canvas.Canvas(str(pdf), pagesize=(612, 792))
+    page.setFont("Helvetica", 10)
+    # pdfminer boxes 10 pt Helvetica from 2.07 pt below the baseline to 7.93
+    # above it, so baselines 10 pt plus the clearance apart leave that clearance.
+    page.drawString(36, 600 + 10 + clearance, "Authorized to work in Canada | Remote-first")
+    page.drawString(36, 600, "SUMMARY")
+    page.drawString(36, 580, "A concise professional summary.")
+    page.save()
+
+    result = check_visual_relationships("resume", pdf, RESUME)
+    assert result.severity.value == severity, result.detail
+
+
+def _draw_pages(pdf, line_counts):
+    from reportlab.pdfgen import canvas
+
+    page = canvas.Canvas(str(pdf), pagesize=(612, 792))
+    page.setFont("Helvetica", 10)
+    for count in line_counts:
+        for line in range(count):
+            page.drawString(36, 740 - 16 * line, "Delivered a production data platform on time")
+        page.showPage()
+    page.save()
+
+
+def test_an_exact_page_target_flags_a_final_page_short_by_height(tmp_path):
+    """Half a page of full lines carries enough words to pass the word ratio."""
+    pdf = tmp_path / "short-final.pdf"
+    _draw_pages(pdf, [42, 21])
+
+    findings = inspect_pdf_layout("resume", pdf, RESUME, pages=2)
+    sparse = [result for result in findings if "final page is lightly filled" in result.detail]
+    assert [result.severity.value for result in sparse] == ["warn"]
+    assert "50%" in sparse[0].detail
+
+    untargeted = inspect_pdf_layout("resume", pdf, RESUME)
+    assert [result.severity.value for result in untargeted] == ["pass"]
+
+
+def test_inspect_applies_the_configured_page_target(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Resume.md").write_text(RESUME, encoding="utf-8")
+    (tmp_path / "pressume.toml").write_text(
+        '[[documents]]\nfile = "Resume.md"\npages = 2\n', encoding="utf-8"
+    )
+    (tmp_path / "renders").mkdir()
+    _draw_pages(tmp_path / "renders" / "Resume.pdf", [42, 21])
+
+    assert main(["inspect", "--json"]) == 0
+    details = [item["detail"] for item in json.loads(capsys.readouterr().out)["results"]]
+    assert any(detail.startswith("final page is lightly filled") for detail in details)
+
+
 def test_readability_inspection_is_advisory_and_detects_sparse_endings(tmp_path):
     assert inspect_source("resume", RESUME)[0].severity.value == "pass"
 
