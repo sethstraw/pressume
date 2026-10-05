@@ -23,21 +23,13 @@ uv sync --locked --all-groups
 `--locked` fails if `uv.lock` and `pyproject.toml` have drifted. If you change
 a dependency, run `uv lock` and commit the result with the change.
 
-Run the local checks:
+Run the verification gate, the same script CI runs. It covers the licence
+audit, formatting, linting, strict typing, and the tests with coverage, and
+reports every failing step at the end:
 
 ```bash
-uv run ruff format --check src tests scripts
-uv run ruff check src tests scripts
-uv run mypy
-uv run pytest --cov --cov-report=term-missing
+bash scripts/gate.sh
 uv build
-```
-
-After any dependency change, confirm the licences still allow shipping under
-MIT. CI runs the same command:
-
-```bash
-uv run --with pip-licenses python scripts/audit_licenses.py
 ```
 
 For rendering changes, also render the bundled templates and inspect the files:

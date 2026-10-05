@@ -253,7 +253,7 @@ when the document renders successfully and then fails verification.
 
 ## Using it with tailorcv
 
-[tailorcv](https://github.com/sethstraw/tailorcv) is a separate project that
+tailorcv is a separate project that
 uses language models to select and rewrite evidence from a master CV for a job
 description. It produces Markdown; pressume can render that Markdown. Neither
 application imports or requires the other.
@@ -264,11 +264,10 @@ application imports or requires the other.
 git clone https://github.com/sethstraw/pressume.git
 cd pressume
 uv sync --locked --all-groups
-uv run ruff format --check src tests scripts
-uv run ruff check src tests scripts
-uv run mypy
-uv run pytest --cov --cov-report=term-missing
+bash scripts/gate.sh
 ```
+
+`scripts/gate.sh` is the full verification gate, the same one CI runs.
 
 Contributions, bug reports, and documentation corrections are welcome. See
 [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and

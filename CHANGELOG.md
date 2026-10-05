@@ -87,13 +87,9 @@ Notable user-visible changes are recorded here. This project uses
 - Held cryptography below 49 on Intel Macs, where the wheels pdfminer needs
   indirectly were removed upstream.
 
-### Added
-
-- A release workflow that publishes from a tag, with signed attestations.
-
 ## [0.1.0] - 2026-08-02
 
-Initial public release.
+Initial release.
 
 ### Added
 
