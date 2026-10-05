@@ -4,7 +4,7 @@ Notable user-visible changes are recorded here. This project uses
 [Semantic Versioning](https://semver.org/) and follows the general structure of
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## Unreleased
 
 ### Changed
 
@@ -74,7 +74,7 @@ Notable user-visible changes are recorded here. This project uses
   fail on a table, leftover authoring metadata, a dropped hyperlink, missing
   accessibility tags, and wrong metadata.
 
-## [0.2.0] - 2026-08-05
+## 0.2.0 - 2026-08-05
 
 ### Fixed
 
@@ -87,7 +87,7 @@ Notable user-visible changes are recorded here. This project uses
 - Held cryptography below 49 on Intel Macs, where the wheels pdfminer needs
   indirectly were removed upstream.
 
-## [0.1.0] - 2026-08-02
+## 0.1.0 - 2026-08-02
 
 Initial release.
 
@@ -98,7 +98,3 @@ Initial release.
   structure, links, metadata, and accessibility.
 - Bundled themes, a configurable document contract, and starter templates.
 - Transactional output replacement and manifest-aware cleanup.
-
-[Unreleased]: https://github.com/sethstraw/pressume/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/sethstraw/pressume/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/sethstraw/pressume/releases/tag/v0.1.0
