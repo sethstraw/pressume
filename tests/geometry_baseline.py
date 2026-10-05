@@ -28,6 +28,7 @@ machine that opens it.
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -46,6 +47,12 @@ from pressume.config import Config, Document, Style
 from pressume.convert import render_pdf
 from pressume.metadata import derive_metadata
 from pressume.themes import THEMES
+
+# Render with the pandoc pypandoc-binary ships, not whatever is on PATH, so a
+# baseline records the renderer every install and CI cell actually gets.
+os.environ["PYPANDOC_PANDOC"] = str(
+    Path(pypandoc.__file__).parent / "files" / ("pandoc.exe" if os.name == "nt" else "pandoc")
+)
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 BASELINE_DIR = Path(__file__).parent / "baselines"

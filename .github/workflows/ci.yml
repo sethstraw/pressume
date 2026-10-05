@@ -26,6 +26,8 @@ jobs:
       - name: Check out source
         # actions/checkout v7.0.1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Set up Python
         # actions/setup-python v6.2.0
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -43,7 +45,11 @@ jobs:
         # that comparison, which is how a stale lockfile survives unnoticed.
         run: uv sync --locked --all-groups
       - name: Audit dependencies for known vulnerabilities
-        run: uv audit --preview-features audit-command
+        # These cryptography advisories cover X.509 verification and PKCS#7, which
+        # pdfminer never calls; only the Intel Mac fork stays on 48 (see pyproject).
+        run: >-
+          uv audit --preview-features audit-command
+          --ignore PYSEC-2026-3552 --ignore PYSEC-2026-3553 --ignore PYSEC-2026-3554
       # The same script a person runs, so a local pass and a green build mean the
       # same thing. The advisory audit above needs the runner's resolved
       # environment, so it stays outside.
@@ -63,6 +69,8 @@ jobs:
       - name: Check out source
         # actions/checkout v7.0.1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Set up Python
         # actions/setup-python v6.2.0
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -87,6 +95,8 @@ jobs:
       - name: Check out source
         # actions/checkout v7.0.1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Set up Python
         # actions/setup-python v6.2.0
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -120,6 +130,8 @@ jobs:
       - name: Check out source
         # actions/checkout v7.0.1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Install uv
         # astral-sh/setup-uv v5.1.0
         uses: astral-sh/setup-uv@887a942a15af3a7626099df99e897a18d9e5ab3a

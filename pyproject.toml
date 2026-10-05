@@ -28,8 +28,10 @@ classifiers = [
 ]
 dependencies = [
     # cryptography 49 removed macOS x86_64 wheels. pdfminer uses it indirectly,
-    # so keep the final Intel-compatible release on Intel Macs.
+    # so keep the final Intel-compatible release on Intel Macs and a patched
+    # release everywhere else.
     "cryptography<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "cryptography>=50; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "pdfminer.six>=20231228",
     "pypandoc-binary>=1.13",
     "typst>=0.14.0",

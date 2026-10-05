@@ -1,4 +1,4 @@
 # Renderer versions these baselines were produced with. Text geometry is
 # only comparable against the same versions; see geometry_baseline.py.
-pandoc 3.11
+pandoc 3.9
 typst 0.15.0

@@ -8,6 +8,7 @@ generous width makes every rendered message a single line everywhere, so
 tests assert on content, never on wrapping luck.
 """
 
+import geometry_baseline  # noqa: F401  pins the bundled pandoc before any test renders
 import pytest
 
 

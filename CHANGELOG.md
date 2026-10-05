@@ -25,6 +25,8 @@ Notable user-visible changes are recorded here. This project uses
 
 ### Fixed
 
+- cryptography is held at 50 or later everywhere except Intel Macs, which keep
+  the final release that ships an Intel wheel.
 - CI installed no development tools at all on its fifteen-cell operating system
   and Python matrix. It asked for a `dev` extra that stopped existing when those
   dependencies moved to a PEP 735 group, so the tests ran without `reportlab`
