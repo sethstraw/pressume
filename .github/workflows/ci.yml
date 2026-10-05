@@ -36,7 +36,7 @@ jobs:
           cache: pip
       - name: Install uv
         # astral-sh/setup-uv v5.1.0
-        uses: astral-sh/setup-uv@887a942a15af3a7626099df99e897a18d9e5ab3a
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
         with:
           enable-cache: true
       - name: Install exactly what the lockfile says
@@ -134,7 +134,7 @@ jobs:
           persist-credentials: false
       - name: Install uv
         # astral-sh/setup-uv v5.1.0
-        uses: astral-sh/setup-uv@887a942a15af3a7626099df99e897a18d9e5ab3a
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
       - name: Lint the workflows
         # A workflow is code with credentials attached, so it gets linted too.
         run: uvx zizmor --persona=regular .github/workflows
