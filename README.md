@@ -251,9 +251,9 @@ when `--apply` is supplied. A file you put in the output folder yourself
 survives it. A failed render leaves the existing files untouched, including
 when the document renders successfully and then fails verification.
 
-## Using it with tailorcv
+## Using it with clearscout
 
-tailorcv is a separate project that
+clearscout is a separate project that
 uses language models to select and rewrite evidence from a master CV for a job
 description. It produces Markdown; pressume can render that Markdown. Neither
 application imports or requires the other.
