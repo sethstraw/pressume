@@ -12,16 +12,11 @@ value, and what the starter configuration is tested against.
 from __future__ import annotations
 
 import re
-import sys
+import tomllib
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePath, PureWindowsPath
 from typing import Any, cast
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - exercised by the Python 3.10 CI job
-    import tomli as tomllib
 
 from pressume.checks.document import RULE_IDS, DocumentRules
 from pressume.errors import PressumeError

@@ -387,8 +387,6 @@ def _new(arguments: argparse.Namespace, errors: Console) -> int:
     from importlib.resources import files
 
     config = _project(arguments)
-    # Chained single-segment joins: the 3.10 Traversable API accepts one
-    # segment per call, and installed-package paths accept either form.
     template = files("pressume") / "templates" / f"{arguments.kind}.md"
     destination_dir = config.resolve(config.source_dir)
     destination_dir.mkdir(parents=True, exist_ok=True)

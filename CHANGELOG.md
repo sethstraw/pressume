@@ -34,6 +34,8 @@ Fixes land on `main` until a release is tagged.
 
 ### Changed
 
+- Python 3.11 or newer is required. Python 3.10 reached end of life, and the
+  Pillow releases that fix its current advisories no longer support it.
 - `style.paper` accepts only `us-letter` and `a4`, and applies to both PDF and
   Word. Other sizes had reached the PDF but left Word at US Letter.
 - The reference DOCX and the DOCX styling pass share one function, so both

@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://github.com/sethstraw/pressume/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/sethstraw/pressume/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
-  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-blue">
 </p>
 
 <p align="center">
