@@ -18,7 +18,7 @@ from pressume.checks.pdfchecks import (
     check_text_hygiene,
     extract_pdf_text,
 )
-from pressume.checks.report import CheckResult
+from pressume.checks.report import CheckResult, Severity
 from pressume.config import Checks, Config
 from pressume.convert import render_docx, render_pdf, render_txt
 from pressume.documents import SourceDocument
@@ -59,6 +59,10 @@ def verify_artifact(
 def _verify_pdf(
     source: SourceDocument, artifact: Path, checks: Checks, config: Config
 ) -> list[CheckResult]:
+    try:
+        text = extract_pdf_text(artifact)
+    except Exception as error:  # PDF parser boundary
+        return [CheckResult(source.stem, "pdf: readable", Severity.FAIL, str(error))]
     results = check_page_target(
         source.stem,
         artifact,
@@ -66,10 +70,6 @@ def _verify_pdf(
         source.settings.min_pages,
         source.settings.max_pages,
     )
-    try:
-        text = extract_pdf_text(artifact)
-    except Exception as error:  # PDF parser boundary
-        raise RenderError(f"Could not read generated {artifact.name}: {error}") from error
     results.extend(check_text_hygiene(source.stem, "pdf", text, checks))
     results.extend(check_ats(source.stem, text, checks))
     results.extend(

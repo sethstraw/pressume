@@ -21,6 +21,7 @@ from pressume.convert import render_pdf, render_txt
 from pressume.documents import SourceDocument
 from pressume.errors import RenderError
 from pressume.formats import render_artifact, verify_artifact
+from pressume.metadata import derive_metadata
 from pressume.template import (
     keep_labels_with_lists,
     keep_traditional_labels_with_lists,
@@ -49,6 +50,7 @@ January 2020 - March 2022
 - Delivered the first thing.
 - Delivered the second thing.
 """
+FIXTURE_METADATA = derive_metadata(FIXTURE, Document(file="Resume.md"), "en", "US")
 
 
 def make_config(tmp_path: Path) -> Config:
@@ -75,14 +77,14 @@ def test_bundled_fonts_ship_with_the_package():
 
 def test_renders_single_page_pdf(tmp_path):
     pdf = tmp_path / "out.pdf"
-    render_pdf(FIXTURE, pdf, make_config(tmp_path))
+    render_pdf(FIXTURE, pdf, make_config(tmp_path), FIXTURE_METADATA)
     assert pdf.exists()
     assert count_pages(pdf) == 1
 
 
 def test_pdf_text_extracts_in_reading_order(tmp_path):
     pdf = tmp_path / "out.pdf"
-    render_pdf(FIXTURE, pdf, make_config(tmp_path))
+    render_pdf(FIXTURE, pdf, make_config(tmp_path), FIXTURE_METADATA)
     text = extract_pdf_text(pdf)
     assert "JANE DOE" in text
     assert "jane@example.com" in text
@@ -93,7 +95,7 @@ def test_pdf_is_tagged_for_accessible_reading_order(tmp_path):
     from pypdf import PdfReader
 
     pdf = tmp_path / "out.pdf"
-    render_pdf(FIXTURE, pdf, make_config(tmp_path))
+    render_pdf(FIXTURE, pdf, make_config(tmp_path), FIXTURE_METADATA)
     root = PdfReader(pdf).root_object
     assert "/StructTreeRoot" in root
     assert bool(root["/MarkInfo"]["/Marked"])
@@ -151,7 +153,7 @@ def test_a_bold_label_at_a_page_boundary_moves_with_its_first_bullet(tmp_path, t
     config = make_config(tmp_path)
     config.style.theme = theme
     pdf = tmp_path / "out.pdf"
-    render_pdf(boundary_fixture(filler), pdf, config)
+    render_pdf(boundary_fixture(filler), pdf, config, FIXTURE_METADATA)
     pages = [page.extract_text() or "" for page in PdfReader(pdf).pages]
     label_pages = [i for i, text in enumerate(pages) if "Synthetic platform work" in text]
     bullet_pages = [i for i, text in enumerate(pages) if "First bullet under the label" in text]
@@ -165,7 +167,7 @@ def test_every_offered_pdf_standard_compiles(tmp_path, standard):
     config = make_config(tmp_path)
     config.style.pdf_standard = standard
     pdf = tmp_path / f"{standard}.pdf"
-    render_pdf(FIXTURE, pdf, config)
+    render_pdf(FIXTURE, pdf, config, FIXTURE_METADATA)
     assert count_pages(pdf) == 1
 
 
@@ -186,7 +188,7 @@ def test_configured_font_directories_are_searched_before_the_bundled_ones(tmp_pa
 
     config = make_config(tmp_path)
     config.font_dirs = [Path("brand-fonts")]
-    render_pdf(FIXTURE, tmp_path / "out.pdf", config)
+    render_pdf(FIXTURE, tmp_path / "out.pdf", config, FIXTURE_METADATA)
 
     paths = seen["font_paths"]
     assert paths[0] == str(brand.resolve())

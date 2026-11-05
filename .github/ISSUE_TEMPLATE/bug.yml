@@ -17,7 +17,14 @@ body:
     id: platform
     attributes:
       label: Platform
-      description: Operating system and Python version from `pressume doctor`.
+      description: Operating system name and Python version from `pressume doctor`.
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      description: For example macOS 15.4, Windows 11 24H2, or Ubuntu 24.04. `pressume doctor` prints the kernel release, not the product version.
     validations:
       required: true
   - type: textarea

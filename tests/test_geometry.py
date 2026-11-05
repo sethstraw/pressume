@@ -111,6 +111,29 @@ def test_every_configuration_satisfies_the_layout_invariants(corpus, fixture, th
     )
 
 
+@pytest.mark.parametrize("density", ["compact", "spacious"])
+@pytest.mark.parametrize("theme", list(themes.THEMES))
+@pytest.mark.parametrize("template", ["resume", "cv"])
+def test_starter_templates_keep_visual_relationships_at_every_density(
+    tmp_path, template, theme, density
+):
+    from importlib.resources import files
+
+    from pressume.checks.pdfchecks import check_visual_relationships
+    from pressume.checks.report import Severity
+    from pressume.config import Config, Document, Style
+    from pressume.convert import render_pdf
+    from pressume.metadata import derive_metadata
+
+    markdown = (files("pressume") / "templates" / f"{template}.md").read_text(encoding="utf-8")
+    metadata = derive_metadata(markdown, Document(file=f"{template}.md"), "en", "US")
+    config = Config(config_dir=tmp_path, style=Style(theme=theme, density=density))
+    pdf = tmp_path / "out.pdf"
+    render_pdf(markdown, pdf, config, metadata)
+    result = check_visual_relationships(template, pdf, markdown)
+    assert result.severity is Severity.PASS, result.detail
+
+
 # ---------------------------------------------------------------------------
 # Proof that each detection fails when something moves.
 # ---------------------------------------------------------------------------
@@ -174,6 +197,23 @@ def test_modern_header_and_bullet_spacing(tmp_path):
     assert second.page == first.page == continuation.page
     assert second.top < continuation.top
     assert continuation.bottom - second.top > first.bottom - continuation.top + 1.0
+
+
+@pytest.mark.parametrize("theme", ["modern", "technical"])
+def test_a_bold_label_and_the_contact_line_clear_their_neighbours(tmp_path, theme):
+    markdown = geometry.read_fixture("dense_resume")
+    _pdf, observed = render(tmp_path, markdown, f"label-{theme}", theme=theme)
+    lines = list(observed.lines)
+    contact = next(line for line in lines if "jane@example.com" in line.text)
+    logistics = lines[lines.index(contact) + 1]
+    label = next(line for line in lines if line.text == "Terminology service rebuild")
+    above, below = lines[lines.index(label) - 1], lines[lines.index(label) + 1]
+
+    assert logistics.text.startswith("Authorized to work")
+    assert contact.bottom - logistics.top >= 1.0
+    assert below.text.startswith("• Replaced")
+    assert above.bottom - label.top >= 0.5
+    assert label.bottom - below.top >= 0.5
 
 
 def test_a_stranded_heading_is_detected(tmp_path):

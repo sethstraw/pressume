@@ -23,9 +23,10 @@ uv sync --locked --all-groups
 `--locked` fails if `uv.lock` and `pyproject.toml` have drifted. If you change
 a dependency, run `uv lock` and commit the result with the change.
 
-Run the verification gate, the same script CI runs. It covers the licence
-audit, formatting, linting, strict typing, and the tests with coverage, and
-reports every failing step at the end:
+Run the verification gate. It covers the licence audit, formatting, linting,
+strict typing, and the tests with coverage, and reports every failing step at
+the end. CI runs it plus an audit, a Python and OS matrix, and a wheel smoke
+test:
 
 ```bash
 bash scripts/gate.sh
@@ -35,7 +36,7 @@ uv build
 For rendering changes, also render the bundled templates and inspect the files:
 
 ```bash
-uv run pressume render --source src/pressume/templates --output /tmp/pressume-smoke
+uv run pressume render resume.md cv.md --source src/pressume/templates --output /tmp/pressume-smoke
 ```
 
 ## Layout baselines

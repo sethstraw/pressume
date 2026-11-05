@@ -283,6 +283,9 @@ def test_doctor_reports_versions_and_paths(tmp_path, monkeypatch, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["pressume"]
     assert payload["source_found"] is True
+    import platform
+
+    assert payload["platform"] == f"{platform.system()} {platform.release()}"
     # pdfminer.six ships with the tool, so a second extractor always exists.
     assert any("pdfminer.six" in item for item in payload["independent_extractors"])
 
@@ -306,3 +309,5 @@ def test_refdoc_creates_parent_directories(tmp_path, monkeypatch):
 def test_requested_document_cannot_escape_source_folder(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert main(["render", "../private.md"]) == 2
+    assert main(["render", "C:private.md"]) == 2
+    assert main(["render", "..\\private.md"]) == 2

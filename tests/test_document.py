@@ -54,6 +54,25 @@ def test_conforming_document_passes():
     assert findings(CONFORMING) == []
 
 
+def test_h2_is_read_as_pandoc_reads_it():
+    """Extra spaces after ## and a closing hash run do not change the section."""
+    spaced = CONFORMING.replace("## Summary", "##  Summary").replace(
+        "## Education", "## Education ##"
+    )
+    assert findings(spaced) == []
+
+
+def test_rule_ids_list_every_rule_a_finding_can_name():
+    import re
+    from pathlib import Path
+
+    import pressume.checks.document as document
+
+    source = Path(document.__file__).read_text(encoding="utf-8").split("RULE_IDS = (")[1]
+    named = set(re.findall(r"\b(?:MD\d{3}|S\d)\b", source.split(")  # fmt: skip", 1)[1]))
+    assert named == set(document.RULE_IDS)
+
+
 def test_missing_h1_fails():
     found = findings(CONFORMING.replace("# JANE DOE", "JANE DOE"))
     assert any("MD025" in f or "MD041" in f for f in found)

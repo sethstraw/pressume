@@ -6,88 +6,84 @@ Notable user-visible changes are recorded here. This project uses
 
 ## Unreleased
 
+Fixes land on `main` until a release is tagged.
+
+### Added
+
+- A `letter` policy for cover letters, chosen through a profile. It keeps the
+  name and contact line and allows no sections. Letter paragraphs are spaced
+  apart, and the PDF title reads `Name - Letter`.
+- `pressume new letter` writes a starter `Letter.md`.
+- The visual check measures the line above each section heading. It fails
+  under 2.0 pt of clearance and warns under 3.0 pt.
+- With an exact `pages` target, `pressume inspect` flags a final page whose
+  text spans under 85% of the median height of earlier pages.
+- Theme screenshots in the README.
+- A GitHub Pages landing page, built from `docs/site`.
+- A test blocks this process's socket calls around a full render and check.
+- Visual regression by recorded text geometry. Five fixtures render in every
+  theme and both paper sizes, and each of the thirty results is compared line
+  by line against a baseline under `tests/baselines`. It catches overflow,
+  clipping, heading collisions, stranded headings, page-count changes, blank
+  final pages, and spacing or font drift.
+- Baselines are written only by `tests/regenerate_geometry_baselines.py`. When
+  the Typst or Pandoc version differs from the recorded one, one test fails by
+  name and the comparisons skip.
+- Tests for the paths that protect delivered files: a failed check leaves the
+  old files byte-identical, and `clean --apply` leaves files it did not create.
+
 ### Changed
 
-- `style.paper` accepts `us-letter` and `a4` only. Any other Typst paper name
-  was accepted and applied to the PDF, while the Word file was silently left at
-  US Letter. Both formats now come from one table, and a size the Word file
-  cannot be given is rejected by name.
-- The reference DOCX and the styling pass over Pandoc's output now share one
-  function, so a Word file made either way carries the same page size, font,
-  and spacing. The reference DOCX previously ignored the configured paper.
-- `pressume init` documents the settings it had been leaving out: `profile`,
-  `lint_only`, `ordered_list_sections`, `dated_sections`,
-  `citation_field_labels`, `max_heading_level`, and `contact_after_name`.
-- A resume or letter no longer needs an email address, and a resume may have
-  no contact line at all, so a public copy can leave out personal contact
-  details. A contact line that is present still carries no emphasis, and
-  configured contact values are still checked in the output.
+- `style.paper` accepts only `us-letter` and `a4`, and applies to both PDF and
+  Word. Other sizes had reached the PDF but left Word at US Letter.
+- The reference DOCX and the DOCX styling pass share one function, so both
+  carry the same page size, font, and spacing.
+- `pressume init` documents `profile`, `lint_only`, `ordered_list_sections`,
+  `dated_sections`, `citation_field_labels`, `max_heading_level`, and
+  `contact_after_name`.
+
+- A resume or letter no longer needs an email address, and a resume may skip
+  the contact line, so a public copy can leave out contact details.
+- The visual check measures every pair of body lines, not only lines in
+  record sections. Two lines closer than 0.25 pt fail.
+- `preview` writes to a preview folder apart from the deliverables.
+- `clean` keeps files from an explicit render.
+- The DOCX conversion runs Pandoc with `--sandbox`, so a local image no longer
+  reaches a Word file. The PDF never loaded local images.
+- The community files moved under `.github/`.
+- The README no longer claims a ClearScout integration.
 
 ### Fixed
 
 - cryptography is held at 50 or later everywhere except Intel Macs, which keep
   the final release that ships an Intel wheel.
-- CI installed no development tools at all on its fifteen-cell operating system
-  and Python matrix. It asked for a `dev` extra that stopped existing when those
-  dependencies moved to a PEP 735 group, so the tests ran without `reportlab`
-  or a pinned pytest. The lockfile had drifted the same way and is regenerated.
-- CI now verifies the lockfile against `pyproject.toml` instead of skipping the
-  comparison, which is what its own comment claimed it did.
-
-### Added
-
-- A `letter` policy for cover letters, selected through a profile. It keeps
-  the H1 name line and the contact paragraph after it, and allows no sections,
-  so resume section rules no longer fail a letter. A letter's PDF sets its
-  paragraphs apart in every theme and density, where they had run together as
-  one block, and its metadata title reads `Name - Letter`. Resume and CV
-  output is unchanged.
-- `pressume new letter` writes a starter `Letter.md`.
-- The PDF visual-relationship check measures the line above each section
-  heading and its rule, failing under 2.0 pt of clearance and warning under
-  3.0 pt. Every shipped template and fixture clears it in every theme, density,
-  and paper size.
-- `pressume inspect` reports a final page as lightly filled when the document
-  has an exact `pages` target and the final page's text spans under 85% of the
-  median height of the pages before it. The warning gives that ratio. Without
-  an exact target the check is unchanged.
-- A test that blocks this process's socket calls around a full render and
-  verification, so the claim that pressume makes no network requests is
-  enforced rather than stated.
-- Visual regression by recorded text geometry. Five invented fixtures render
-  under every theme and both paper sizes, and each of the thirty results is
-  compared line by line against a recorded baseline: page count, text region,
-  and the box, size, and font of every text line. The comparison reports
-  overflow past the text region, clipping at the paper edge, heading
-  collisions, a heading stranded at the bottom of a page, a page-count change,
-  a nearly blank final page, headings that stopped outranking body text, and
-  any material change in spacing, typography, or margins. Every one of those
-  has a test that perturbs something and proves the comparison fails.
-- The baselines are version-controlled data under `tests/baselines`, written
-  only by `tests/regenerate_geometry_baselines.py`. The comparison has no code
-  path that writes a file, so a failing check cannot rewrite what it failed
-  against. The Typst and Pandoc versions behind the recorded files are stored
-  with them; when the running versions differ, one test says so by name and the
-  comparisons skip rather than passing against a renderer that did not produce
-  them.
-- Tests for the failure paths that protect delivered files: a document that
-  renders and then fails verification leaves the previous files byte-identical,
-  `clean --apply` leaves a file it did not create, and the DOCX and PDF checks
-  fail on a table, leftover authoring metadata, a dropped hyperlink, missing
-  accessibility tags, and wrong metadata.
+- Bold labels and the contact line no longer overlap the line below in the
+  modern and technical themes, nor citations in any theme.
+- PDF metadata keeps non-ASCII and special characters.
+- Two documents that would write the same output name are rejected.
+- A corrupt PDF is reported as a failed check instead of a crash.
+- A config file that is not UTF-8 is reported clearly.
+- An unknown rule ID in config is rejected.
+- H2 headings parse correctly.
+- Images are no longer counted as links.
+- A Windows path in config is guarded.
+- CI installs the development tools again. It had asked for a `dev` extra
+  that no longer existed after the move to a PEP 735 group. The lockfile is
+  regenerated.
+- CI verifies the lockfile against `pyproject.toml` instead of skipping it.
 
 ## 0.2.0 - 2026-08-05
-
-### Fixed
-
-- A hard line break no longer ends the component it sits inside.
-- An ORCID identifier is no longer read as a telephone number.
 
 ### Changed
 
 - Rewrote the documentation and stated plainly that the project is AI-assisted.
 - Held cryptography below 49 on Intel Macs, where the wheels pdfminer needs
-  indirectly were removed upstream.
+  were removed upstream.
+
+### Fixed
+
+- A hard line break no longer ends the component it sits inside.
+- An ORCID identifier is no longer read as a telephone number.
 
 ## 0.1.0 - 2026-08-02
 

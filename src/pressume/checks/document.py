@@ -40,8 +40,14 @@ from dataclasses import dataclass, field
 from pressume.checks.report import CheckResult, Severity
 from pressume.checks.textrules import LONG_MONTH_NAMES, SHORT_MONTH_NAMES
 
+# Every rule id a lint finding can carry; a test holds it to the findings below.
+RULE_IDS = (
+    "MD003", "MD004", "MD009", "MD010", "MD012", "MD018", "MD022", "MD025", "MD030", "MD041",
+    "MD047", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8",
+)  # fmt: skip
+
 H1 = re.compile(r"^# (?P<text>\S.*)$")
-H2 = re.compile(r"^## (?P<text>\S.*)$")
+H2 = re.compile(r"^##[ \t]+(?P<text>.+?)(?:[ \t]+#+)?[ \t]*$", re.MULTILINE)
 HEADING = re.compile(r"^(?P<hashes>#{1,6})(?P<gap>\s*)(?P<text>.*)$")
 BULLET = re.compile(r"^(?P<indent>\s*)(?P<marker>[-*+])(?P<gap>\s+)")
 LABELED_LINE = re.compile(r"^\*\*[^*:]+:\*\* \S.*$")

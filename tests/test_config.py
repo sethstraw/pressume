@@ -182,6 +182,33 @@ forbidden_strings = ["Draft"]
     assert checks.forbidden_strings == ["Draft"]
 
 
+@pytest.mark.parametrize(
+    "file", ["C:/Resume.md", "C:Resume.md", "//server/share/Resume.md", "..\\Resume.md", "\\a.md"]
+)
+def test_windows_shaped_document_paths_are_rejected(tmp_path, file):
+    escaped = file.replace("\\", "\\\\")
+    with pytest.raises(ConfigError, match="relative Markdown path"):
+        load_config(write(tmp_path, f'[[documents]]\nfile = "{escaped}"\n'))
+
+
+def test_non_utf8_config_is_a_config_error(tmp_path):
+    path = tmp_path / "pressume.toml"
+    path.write_bytes('[style]\ntheme = "modern" # caf\xe9\n'.encode("latin-1"))
+    with pytest.raises(ConfigError, match=r"pressume\.toml is not UTF-8"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("key", ["warning_rules", "disabled_rules"])
+def test_unknown_rule_ids_are_rejected(tmp_path, key):
+    with pytest.raises(ConfigError, match=rf"document.{key}: unknown \['S99'\]"):
+        load_config(write(tmp_path, f'[document]\n{key} = ["S6", "S99"]\n'))
+
+
+def test_known_rule_ids_load_in_any_case(tmp_path):
+    config = load_config(write(tmp_path, '[document]\nwarning_rules = ["s6", "MD009"]\n'))
+    assert config.document_rules.warning_rules == ["s6", "MD009"]
+
+
 def test_document_path_cannot_escape_source_folder(tmp_path):
     with pytest.raises(ConfigError, match="relative Markdown path"):
         load_config(write(tmp_path, '[[documents]]\nfile = "../Resume.md"\n'))

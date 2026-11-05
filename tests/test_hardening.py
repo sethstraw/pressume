@@ -185,6 +185,45 @@ def test_extractor_agreement_uses_pdfminer_when_poppler_is_absent(tmp_path, monk
     assert "pdfminer.six" in result.detail
 
 
+def test_docx_render_reads_no_resource_beyond_its_input_and_reference(tmp_path, monkeypatch):
+    """Pandoc's sandbox stands in for a network fetch: a local image is not read either."""
+    from pressume.config import Style
+    from pressume.refdoc import build_reference_docx
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "photo.png").write_bytes(
+        bytes.fromhex(
+            "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+            "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082"
+        )
+    )
+    reference = tmp_path / "reference.docx"
+    build_reference_docx(Style(), reference)
+    config = Config(config_dir=tmp_path)
+    config.reference_docx = reference
+    markdown = "# JANE DOE\n\n![Photo](photo.png)\n\n![Remote](https://example.invalid/a.png)\n"
+    metadata = derive_metadata(markdown, Document(file="Resume.md"), "en", "US")
+    destination = tmp_path / "out.docx"
+
+    render_docx(markdown, destination, config, metadata)
+
+    with zipfile.ZipFile(destination) as archive:
+        assert not [name for name in archive.namelist() if name.startswith("word/media/")]
+
+
+def test_raw_typst_never_reaches_typst_even_without_verification(tmp_path, monkeypatch):
+    from pressume.cli import main
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Resume.md").write_text(
+        '# JANE DOE\n\n```{=typst}\n#import "@preview/nonexistent-pkg:0.0.1": *\n```\n'
+        "\n`#panic(1)`{=typst}\n",
+        encoding="utf-8",
+    )
+    assert main(["render", "--no-verify", "--formats", "pdf"]) == 0
+    assert (tmp_path / "renders" / "Resume.pdf").is_file()
+
+
 def test_missing_configured_reference_docx_is_a_config_error(tmp_path):
     config = Config(config_dir=tmp_path)
     config.reference_docx = tmp_path / "missing-reference.docx"

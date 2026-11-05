@@ -6,8 +6,7 @@ with dotted paths that point back to the offending setting.
 
 Every setting is described once, in the ``Setting`` tables below. Those tables
 are what rejects an unknown key, what checks a type, a range, or a permitted
-value, and what the starter configuration is tested against, so a new setting
-is added in one place rather than four.
+value, and what the starter configuration is tested against.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ import re
 import sys
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from pathlib import Path, PurePath
+from pathlib import Path, PurePath, PureWindowsPath
 from typing import Any, cast
 
 if sys.version_info >= (3, 11):
@@ -24,7 +23,7 @@ if sys.version_info >= (3, 11):
 else:  # pragma: no cover - exercised by the Python 3.10 CI job
     import tomli as tomllib
 
-from pressume.checks.document import DocumentRules
+from pressume.checks.document import RULE_IDS, DocumentRules
 from pressume.errors import PressumeError
 from pressume.themes import DENSITY_FACTORS, THEMES
 
@@ -266,8 +265,8 @@ RULE_SETTINGS = _settings(
     Setting("citation_field_labels", "strings"),
     Setting("max_heading_level", "int", minimum=2, maximum=6),
     Setting("contact_after_name", "bool"),
-    Setting("warning_rules", "strings"),
-    Setting("disabled_rules", "strings"),
+    Setting("warning_rules", "strings", choices=RULE_IDS),
+    Setting("disabled_rules", "strings", choices=RULE_IDS),
 )
 
 RULE_KEYS = (POLICY_SETTING.name, *RULE_SETTINGS)
@@ -310,6 +309,8 @@ def load_config(path: Path) -> Config:
         )
     try:
         raw = cast(TomlTable, tomllib.loads(path.read_text(encoding="utf-8")))
+    except UnicodeDecodeError as error:
+        raise ConfigError([f"{path.name} is not UTF-8: {error}"]) from error
     except tomllib.TOMLDecodeError as error:
         raise ConfigError([f"{path.name} is not valid TOML: {error}"]) from error
     except OSError as error:
@@ -396,6 +397,11 @@ def _read(table: TomlTable, setting: Setting, where: str, problems: list[str]) -
             problems.append(f"{label}: every entry must be a non-empty string")
             return None
         entries = cast(list[str], value)
+        permitted = {choice.casefold() for choice in setting.choices}
+        unknown = [entry for entry in entries if permitted and entry.casefold() not in permitted]
+        if unknown:
+            problems.append(f"{label}: unknown {unknown}; choose from {list(setting.choices)}")
+            return None
         return [Path(entry) for entry in entries] if setting.kind == "paths" else list(entries)
 
     if setting.kind in ("int", "number"):
@@ -506,7 +512,7 @@ def _document(entry: TomlTable, where: str, problems: list[str]) -> Document | N
         if "file" not in entry:
             problems.append(f"{where}.file: required Markdown path is missing")
         return None
-    if not _is_safe_markdown_path(filename):
+    if not is_safe_markdown_path(filename):
         problems.append(f"{where}.file: expected a relative Markdown path ending in .md")
         return None
 
@@ -606,20 +612,27 @@ def _validate_document_references(config: Config, problems: list[str]) -> None:
             )
 
 
-def _is_safe_markdown_path(value: str) -> bool:
+def is_safe_markdown_path(value: str) -> bool:
+    """Return whether ``value`` names Markdown inside the source folder on any OS."""
     path = PurePath(value)
+    windows = PureWindowsPath(value)
     return (
         path.suffix.casefold() == ".md"
         and not path.is_absolute()
-        and ".." not in path.parts
+        and not windows.drive
+        and not windows.root
+        and ".." not in windows.parts
         and path.name not in ("", ".", "..")
     )
 
 
 def _is_safe_output_name(value: str) -> bool:
     path = PurePath(value)
+    windows = PureWindowsPath(value)
     return (
         not path.is_absolute()
+        and not windows.drive
+        and not windows.root
         and len(path.parts) == 1
         and path.suffix == ""
         and path.name not in ("", ".", "..")

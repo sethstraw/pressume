@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pressume"
 version = "0.2.0"
-description = "Render and verify resume PDFs from Markdown with Pandoc and Typst."
+description = "Render and verify resumes, CVs, and letters as PDF, TXT, and DOCX from Markdown with Pandoc and Typst."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -74,11 +74,8 @@ include = [
     "/src",
     "/tests",
     "/CHANGELOG.md",
-    "/CODE_OF_CONDUCT.md",
-    "/CONTRIBUTING.md",
     "/LICENSE",
     "/README.md",
-    "/SECURITY.md",
     "/pyproject.toml",
 ]
 

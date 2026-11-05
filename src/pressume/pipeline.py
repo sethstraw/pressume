@@ -12,7 +12,13 @@ from pressume.checks.ats import derive_checks
 from pressume.checks.document import lint_document
 from pressume.checks.report import CheckResult, Severity, emit
 from pressume.checks.source import check_source
-from pressume.config import Config, ConfigError, Document, validate_formats
+from pressume.config import (
+    Config,
+    ConfigError,
+    Document,
+    is_safe_markdown_path,
+    validate_formats,
+)
 from pressume.diagnostics import inspect_pdf_layout, inspect_source
 from pressume.documents import SourceDocument
 from pressume.errors import RenderError
@@ -54,11 +60,10 @@ def select_documents(config: Config, names: list[str]) -> list[Document]:
     stems: set[str] = set()
     for name in names:
         filename = name if name.casefold().endswith(".md") else f"{name}.md"
-        path = PurePath(filename)
-        if path.is_absolute() or ".." in path.parts:
+        if not is_safe_markdown_path(filename):
             raise ConfigError([f"Document path must stay inside the source folder: {name}"])
         document = configured.get(filename, Document(file=filename))
-        stem = Path(filename).stem.casefold()
+        stem = (document.output_name or PurePath(filename).stem).casefold()
         if stem in stems:
             raise ConfigError([f"Selected documents produce the same output name: {filename}"])
         stems.add(stem)
@@ -297,21 +302,28 @@ def _commit_outputs(
     backups: list[tuple[Path, Path]] = []
     installed: list[Path] = []
     try:
-        for temporary, final in pending:
+        for index, (temporary, final) in enumerate(pending):
             if final.exists():
-                backup = backup_dir / final.name
+                backup = backup_dir / f"{index}-{final.name}"
                 os.replace(final, backup)
                 backups.append((backup, final))
             os.replace(temporary, final)
             installed.append(final)
 
         manifest = load_manifest(output_dir)
+        planned = expected_artifacts(config)
         for source in sources:
             if source.settings.lint_only:
                 continue
+            # Only planned outputs are tracked, so `clean` never lists a file
+            # the user rendered on purpose outside the project plan.
             produced = [
-                f"{source.stem}.{name}"
-                for name in _formats_for(config, source.settings, format_override)
+                name
+                for name in (
+                    f"{source.stem}.{fmt}"
+                    for fmt in _formats_for(config, source.settings, format_override)
+                )
+                if name in planned.get(source.settings.file, [])
             ]
             # Keep earlier generated names until `clean` can compare them with
             # the current project plan. Replacing this entry would forget a

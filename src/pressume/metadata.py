@@ -9,6 +9,7 @@ from pressume.config import Document
 
 H1 = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 MARKUP = re.compile(r"[*_`]+")
+CV_TOKEN = re.compile(r"(?<![a-z0-9])cv(?![a-z0-9])", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ def derive_metadata(
     author = document.author or derived_author
     if letter:
         kind = "Letter"
-    elif document.profile == "cv" or "cv" in document.file.casefold():
+    elif document.profile == "cv" or CV_TOKEN.search(document.file):
         kind = "CV"
     else:
         kind = "Resume"

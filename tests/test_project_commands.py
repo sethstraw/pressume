@@ -33,7 +33,67 @@ def test_preview_renders_once_and_opens_the_pdf(tmp_path, monkeypatch, capsys):
     assert main(["preview", "--open"]) == 0
     capsys.readouterr()
     assert len(opened) == 1
-    assert opened[0].endswith("Resume.pdf")
+    assert opened[0].endswith("/renders/preview/Resume.pdf")
+
+
+def test_preview_never_replaces_a_deliverable(tmp_path, monkeypatch, capsys):
+    start_project(tmp_path, monkeypatch)
+    assert main(["render"]) == 0
+    renders = tmp_path / "renders"
+    before = {path.name: path.read_bytes() for path in renders.iterdir() if path.is_file()}
+
+    assert main(["preview", "--theme", "traditional"]) == 0
+    capsys.readouterr()
+
+    after = {path.name: path.read_bytes() for path in renders.iterdir() if path.is_file()}
+    assert after == before
+    assert (renders / "preview" / "Resume.pdf").is_file()
+
+
+def test_colliding_output_names_are_refused_before_anything_is_written(
+    tmp_path, monkeypatch, capsys
+):
+    start_project(tmp_path, monkeypatch)
+    (tmp_path / "Jane_Doe_Resume.md").write_text(
+        (tmp_path / "Resume.md").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    (tmp_path / "pressume.toml").write_text(
+        '[[documents]]\nfile = "Resume.md"\noutput_name = "Jane_Doe_Resume"\n', encoding="utf-8"
+    )
+    prior = tmp_path / "renders" / "Jane_Doe_Resume.txt"
+    prior.parent.mkdir()
+    prior.write_text("prior deliverable", encoding="utf-8")
+    capsys.readouterr()
+
+    assert main(["render", "Resume.md", "jane_doe_resume.md"]) == 2
+    assert "same output name" in capsys.readouterr().err
+    assert prior.read_text(encoding="utf-8") == "prior deliverable"
+    assert sorted(path.name for path in prior.parent.iterdir()) == ["Jane_Doe_Resume.txt"]
+
+
+def test_clean_leaves_explicit_renders_outside_the_plan(tmp_path, monkeypatch, capsys):
+    """An unconfigured document or an extra format rendered on request is not stale."""
+    start_project(tmp_path, monkeypatch)
+    (tmp_path / "Other.md").write_text(
+        (tmp_path / "Resume.md").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    (tmp_path / "pressume.toml").write_text('[[documents]]\nfile = "Resume.md"\n', encoding="utf-8")
+    assert main(["render"]) == 0
+    assert main(["render", "Other.md"]) == 0
+    assert main(["render", "--formats", "docx"]) == 0
+    capsys.readouterr()
+
+    assert main(["clean", "--json"]) == 0
+    details = [item["detail"] for item in json.loads(capsys.readouterr().out)["results"]]
+    assert details == ["no stale tracked output"]
+    assert main(["check", "--json"]) == 0
+    results = json.loads(capsys.readouterr().out)["results"]
+    assert not [item for item in results if item["check"] == "output manifest"]
+
+    assert main(["clean", "--apply", "--json"]) == 0
+    renders = tmp_path / "renders"
+    for name in ("Other.pdf", "Other.txt", "Resume.docx", "Resume.pdf", "Resume.txt"):
+        assert (renders / name).is_file(), name
 
 
 def test_check_reverifies_and_reports_a_missing_artifact(tmp_path, monkeypatch, capsys):

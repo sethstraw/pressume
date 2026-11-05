@@ -53,6 +53,7 @@ Bachelor of Science, Example University, 2019
 
 Doe J. A useful article. Example Journal. 2024. doi:10.1000/example.
 """
+RESUME_METADATA = derive_metadata(RESUME, Document(file="Resume.md"), "en", "US")
 
 
 def test_linkification_preserves_visible_text_and_adds_destinations():
@@ -215,6 +216,84 @@ def test_a_corrupt_docx_fails_the_package_check_instead_of_raising(tmp_path):
     assert failing_checks(results, "docx: package")
 
 
+def _project_with_rendered_pdf(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    assert main(["new", "resume"]) == 0
+    assert main(["render", "--formats", "pdf"]) == 0
+    capsys.readouterr()
+    pdf = tmp_path / "renders" / "Resume.pdf"
+    pdf.write_bytes(pdf.read_bytes()[:400])
+
+
+def test_check_fails_a_truncated_pdf_without_a_traceback(tmp_path, monkeypatch, capsys):
+    _project_with_rendered_pdf(tmp_path, monkeypatch, capsys)
+    assert main(["check", "--formats", "pdf", "--json"]) == 1
+    results = json.loads(capsys.readouterr().out)["results"]
+    assert [item["result"] for item in results if item["check"] == "pdf: readable"] == ["fail"]
+
+
+def test_inspect_warns_on_a_truncated_pdf_without_a_traceback(tmp_path, monkeypatch, capsys):
+    _project_with_rendered_pdf(tmp_path, monkeypatch, capsys)
+    assert main(["inspect", "--json"]) == 0
+    results = json.loads(capsys.readouterr().out)["results"]
+    balance = [item for item in results if item["check"] == "readability: page balance"]
+    assert balance and balance[0]["result"] == "warn"
+    assert "unreadable" in balance[0]["detail"]
+
+
+def _render_and_check_metadata(tmp_path, markdown, document, theme="modern"):
+    metadata = derive_metadata(markdown, document, "en", "US")
+    pdf = tmp_path / f"{theme}.pdf"
+    render_pdf(markdown, pdf, Config(config_dir=tmp_path, style=Style(theme=theme)), metadata)
+    results = check_pdf_delivery("resume", pdf, metadata, markdown)
+    return PdfReader(pdf).metadata, failing_checks(results, "pdf: metadata")
+
+
+@pytest.mark.parametrize("theme", ["modern", "traditional"])
+def test_non_ascii_author_and_keywords_reach_pdf_metadata(tmp_path, theme):
+    markdown = RESUME.replace("# JANE DOE", "# José García")
+    document = Document(file="Resume.md", keywords=["México", "Montréal"])
+    info, failed = _render_and_check_metadata(tmp_path, markdown, document, theme)
+    assert info.author == "José García"
+    assert info["/Keywords"] == "México, Montréal"
+    assert not failed
+
+
+def test_pdf_metadata_check_compares_keywords(tmp_path):
+    document = Document(file="Resume.md", keywords=["data"])
+    metadata = derive_metadata(RESUME, document, "en", "US")
+    pdf = tmp_path / "resume.pdf"
+    render_pdf(RESUME, pdf, Config(config_dir=tmp_path), metadata)
+    expected = derive_metadata(RESUME, Document(file="Resume.md", keywords=["sales"]), "en", "US")
+    failed = failing_checks(check_pdf_delivery("resume", pdf, expected, RESUME), "pdf: metadata")
+    assert failed and "keywords='data'" in failed[0].detail
+
+
+@pytest.mark.parametrize("text", ["A*B*", "Cost $5 $6", "@ref", "<tag>", "1--2", "a~b", 'Say "hi"'])
+def test_metadata_title_and_description_round_trip_exactly(tmp_path, text):
+    document = Document(file="Resume.md", title=f"Jane {text}", description=f"About {text}")
+    info, failed = _render_and_check_metadata(tmp_path, RESUME, document)
+    assert info.title == f"Jane {text}"
+    assert info.subject == f"About {text}"
+    assert not failed
+
+
+def test_an_image_is_not_an_expected_hyperlink():
+    from pressume.links import LINK_TARGET
+
+    markdown = "![Logo](https://example.com/logo.png) and [site](https://example.com)"
+    assert LINK_TARGET.findall(markdown) == ["https://example.com"]
+
+
+@pytest.mark.parametrize(
+    ("file", "kind"),
+    [("Mcvay_Resume.md", "Resume"), ("Jane_CV.md", "CV"), ("cv.md", "CV"), ("CV-2026.md", "CV")],
+)
+def test_cv_label_needs_cv_as_a_whole_name_token(file, kind):
+    metadata = derive_metadata(RESUME, Document(file=file), "en", "US")
+    assert metadata.title == f"JANE DOE - {kind}"
+
+
 def test_docx_checks_catch_tables_metadata_residue_and_dropped_links(tmp_path):
     """The three DOCX failures a recipient would actually notice.
 
@@ -298,7 +377,7 @@ def test_pdf_delivery_checks_catch_wrong_metadata_lost_tags_and_dropped_links(tm
 def test_modern_theme_preserves_visual_hierarchy_and_geometry(tmp_path):
     """Guard the key visual relationships without a brittle pixel snapshot."""
     pdf = tmp_path / "resume.pdf"
-    render_pdf(RESUME, pdf, Config(config_dir=tmp_path))
+    render_pdf(RESUME, pdf, Config(config_dir=tmp_path), RESUME_METADATA)
     page = PdfReader(pdf).pages[0]
     fragments: dict[str, tuple[float, float, float]] = {}
 
@@ -322,7 +401,7 @@ def test_traditional_theme_preserves_compatibility_layout_and_publication_blocks
     """Guard the established serif layout used by exact-page portfolios."""
     config = Config(config_dir=tmp_path, style=Style(theme="traditional"))
     pdf = tmp_path / "traditional.pdf"
-    render_pdf(RESUME, pdf, config)
+    render_pdf(RESUME, pdf, config, RESUME_METADATA)
 
     reader = PdfReader(pdf)
     assert len(reader.pages) == 1
@@ -362,7 +441,23 @@ def test_visual_relationship_check_rejects_overlapping_education_records(tmp_pat
 
     result = check_visual_relationships("resume", pdf, RESUME)
     assert result.severity.value == "fail"
-    assert "record minimum" in result.detail
+    assert "body minimum" in result.detail
+
+
+def test_visual_relationship_check_rejects_overlapping_body_lines(tmp_path):
+    from reportlab.pdfgen import canvas
+
+    pdf = tmp_path / "body.pdf"
+    page = canvas.Canvas(str(pdf), pagesize=(612, 792))
+    page.setFont("Helvetica", 10)
+    page.drawString(36, 690, "SUMMARY")
+    page.drawString(36, 670, "Flagship project")
+    page.drawString(36, 662, "Replaced three overlapping mapping tables with one service.")
+    page.save()
+
+    result = check_visual_relationships("resume", pdf, RESUME)
+    assert result.severity.value == "fail"
+    assert "'Flagship project' -> 'Replaced three" in result.detail
 
 
 @pytest.mark.parametrize(("clearance", "severity"), [(1.5, "fail"), (2.5, "warn"), (3.7, "pass")])
@@ -442,7 +537,7 @@ def test_readability_inspection_is_advisory_and_detects_sparse_endings(tmp_path)
     assert any("repeated bullet openers" in result.detail for result in source_findings)
 
     pdf = tmp_path / "resume.pdf"
-    render_pdf(RESUME, pdf, Config(config_dir=tmp_path))
+    render_pdf(RESUME, pdf, Config(config_dir=tmp_path), RESUME_METADATA)
     assert inspect_pdf_layout("resume", pdf, RESUME)[0].severity.value == "pass"
 
     reader = PdfReader(pdf)
@@ -459,7 +554,7 @@ def test_readability_inspection_is_advisory_and_detects_sparse_endings(tmp_path)
 def test_page_ranges_accept_inside_and_reject_outside(tmp_path):
     config = Config(config_dir=tmp_path)
     pdf = tmp_path / "resume.pdf"
-    render_pdf(RESUME, pdf, config)
+    render_pdf(RESUME, pdf, config, RESUME_METADATA)
     assert check_page_target("resume", pdf, None, 1, 2)[0].severity.value == "pass"
     assert check_page_target("resume", pdf, None, 2, 3)[0].severity.value == "fail"
 

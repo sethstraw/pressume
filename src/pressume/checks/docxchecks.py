@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -11,7 +10,7 @@ from pressume.checks.ats import check_ats
 from pressume.checks.pdfchecks import check_text_hygiene
 from pressume.checks.report import CheckResult, Severity
 from pressume.config import Checks
-from pressume.links import linkify_markdown
+from pressume.links import LINK_TARGET, linkify_markdown
 from pressume.metadata import DocumentMetadata
 
 WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -22,7 +21,6 @@ TEXT = f"{{{WORD_NS}}}t"
 PARAGRAPH = f"{{{WORD_NS}}}p"
 TABLE = f"{{{WORD_NS}}}tbl"
 TEXTBOX = f"{{{WORD_NS}}}txbxContent"
-LINK_TARGET = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 
 
 def extract_docx_text(path: Path) -> str:

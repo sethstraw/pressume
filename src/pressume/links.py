@@ -14,6 +14,8 @@ DOI = re.compile(r"(?i)\bdoi:(10\.\d{4,9}/[-._;()/:A-Z0-9]+)(?=\s|$)")
 # nested ``tel:`` link even though it is not a telephone number.
 PHONE = re.compile(r"(?<![\w/.\[-])\+?\d[\d ().-]{6,}\d(?![\w/\]-])")
 EXPLICIT_LINK = re.compile(r"\[[^]]+\]\([^)]+\)")
+# The lookbehind excludes Markdown images, whose target is not a hyperlink.
+LINK_TARGET = re.compile(r"(?<!!)\[[^]]+\]\(([^)]+)\)")
 
 
 def linkify_markdown(markdown: str) -> str:

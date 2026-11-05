@@ -23,6 +23,7 @@ from rich.table import Table
 from pressume import __version__
 from pressume.config import Config, ConfigError, load_config, validate_formats
 from pressume.errors import PressumeError
+from pressume.themes import DENSITY_FACTORS, THEMES
 
 DEFAULT_CONFIG = Path("pressume.toml")
 NEW_FILENAMES = {"resume": "Resume.md", "cv": "CV.md", "letter": "Letter.md"}
@@ -36,7 +37,7 @@ EXIT_INTERRUPTED = 130
 EPILOG = """\
 exit codes:
   0  success, all checks passed
-  1  verification failed; existing deliverables remain unchanged
+  1  a check failed or a file to create already exists; deliverables are unchanged
   2  command or configuration error
   3  rendering or file-system error
 
@@ -139,7 +140,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the complete argument parser without reading user state."""
     parser = argparse.ArgumentParser(
         prog="pressume",
-        description="Render and verify resume PDFs from Markdown.",
+        description="Render and verify resumes, CVs, and letters from Markdown as PDF, TXT, DOCX.",
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -172,7 +173,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     preview = commands.add_parser(
         "preview",
-        help="render locally and optionally watch for source changes",
+        help="render into the output folder's preview/ and optionally watch for changes",
         parents=[source_output],
     )
     _add_document_arguments(preview)
@@ -247,8 +248,8 @@ def _add_document_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_style_overrides(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--theme", choices=("modern", "technical", "traditional"))
-    parser.add_argument("--density", choices=("compact", "balanced", "spacious"))
+    parser.add_argument("--theme", choices=tuple(THEMES))
+    parser.add_argument("--density", choices=tuple(DENSITY_FACTORS))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -440,7 +441,7 @@ def _diagnose(config: Config) -> Diagnostics:
     return Diagnostics(
         pressume=__version__,
         python=platform.python_version(),
-        platform=platform.system(),
+        platform=f"{platform.system()} {platform.release()}",
         pandoc=str(pypandoc.get_pandoc_version()),
         typst=version("typst"),
         source=str(source),
@@ -540,6 +541,7 @@ def _preview(arguments: argparse.Namespace, errors: Console) -> int:
     from pressume.pipeline import run, select_documents
 
     config = _project(arguments)
+    config.output_dir = config.resolve(config.output_dir) / "preview"
     selected_formats = _format_override(arguments.formats) or ["pdf"]
 
     def render_once() -> int:

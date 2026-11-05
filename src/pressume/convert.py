@@ -13,14 +13,15 @@ from typing import Any, cast
 import pypandoc
 import typst
 
-from pressume.config import Config, ConfigError, Document
+from pressume.config import Config, ConfigError
 from pressume.errors import RenderError
 from pressume.links import linkify_markdown
-from pressume.metadata import DocumentMetadata, derive_metadata
+from pressume.metadata import DocumentMetadata
 from pressume.template import build_document, strip_thematic_breaks
 
 # `-smart` keeps straight ASCII quotes and dashes exactly as written.
-MARKDOWN = "markdown-smart"
+# `-raw_attribute` renders a {=typst} block as code, so no source reaches Typst raw.
+MARKDOWN = "markdown-smart-raw_attribute"
 
 
 def markdown_to_typst_body(markdown: str) -> str:
@@ -52,11 +53,10 @@ def render_pdf(
     markdown: str,
     output_path: Path,
     config: Config,
-    metadata: DocumentMetadata | None = None,
+    metadata: DocumentMetadata,
     letter: bool = False,
 ) -> None:
     """Render Markdown to a PDF via a generated Typst document."""
-    metadata = metadata or derive_metadata(markdown, Document(file="Resume.md"), "en", "US")
     prepared = linkify_markdown(strip_thematic_breaks(markdown))
     body = markdown_to_typst_body(prepared)
     document = build_document(body, config.style, metadata, letter)
@@ -108,7 +108,7 @@ def render_docx(
     The DOCX is an on-demand convenience for portals that require Word uploads;
     the PDF is the document of record and their pagination may differ.
     """
-    extra_args = []
+    extra_args = ["--sandbox"]
     if config.reference_docx is not None:
         reference = config.resolve(config.reference_docx)
         if not reference.exists():

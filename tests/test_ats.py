@@ -87,6 +87,14 @@ def test_derive_checks_reads_the_document():
     assert derived.section_order == ["Summary", "Experience"]
 
 
+def test_derived_section_order_reads_h2_as_pandoc_does():
+    from pressume.checks.ats import derive_checks
+    from pressume.config import Checks
+
+    markdown = "# JANE DOE\n\n##  Summary\n\nText.\n\n## Experience ##\n\nText.\n"
+    assert derive_checks(markdown, Checks()).section_order == ["Summary", "Experience"]
+
+
 def test_derive_checks_never_overrides_configuration():
     from pressume.checks.ats import derive_checks
     from pressume.config import Checks

@@ -2,8 +2,8 @@
 
 ## Supported version
 
-Security fixes are made against the latest release. Please confirm the issue is
-still present there before reporting it.
+No release is tagged yet. Security fixes land on `main`. Please confirm the
+issue is still present there before reporting it.
 
 ## Report a vulnerability privately
 

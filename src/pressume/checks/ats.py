@@ -17,6 +17,7 @@ import re
 from dataclasses import replace
 from itertools import pairwise
 
+from pressume.checks.document import H2
 from pressume.checks.report import CheckResult, Severity
 from pressume.checks.textrules import LONG_MONTH_NAMES, SHORT_MONTH_NAMES
 from pressume.config import Checks
@@ -37,7 +38,6 @@ ORCID_ID = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
 TOP_OF_DOCUMENT_LINES = 8
 
 H1_LINE = re.compile(r"^# (?P<text>\S.*)$", re.MULTILINE)
-H2_LINE = re.compile(r"^## (?P<text>\S.*)$", re.MULTILINE)
 
 
 def derive_checks(markdown: str, configured: Checks) -> Checks:
@@ -70,9 +70,7 @@ def derive_checks(markdown: str, configured: Checks) -> Checks:
             if not ORCID_ID.fullmatch(phone.strip())
         ]
     if not derived.section_order:
-        derived.section_order = [
-            match.group("text").strip() for match in H2_LINE.finditer(markdown)
-        ]
+        derived.section_order = [match.group("text").strip() for match in H2.finditer(markdown)]
     return derived
 
 

@@ -13,7 +13,7 @@ from collections.abc import Callable
 from difflib import SequenceMatcher
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from pdfminer.high_level import extract_pages
 from pdfminer.high_level import extract_text as pdfminer_extract_text
@@ -27,11 +27,9 @@ from pressume.checks.textrules import (
     unexpected_non_ascii,
 )
 from pressume.config import Checks
-from pressume.links import linkify_markdown
+from pressume.links import LINK_TARGET, linkify_markdown
 from pressume.metadata import DocumentMetadata
-from pressume.template import RECORD_SECTIONS
 
-LINK_TARGET = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 TOKEN = re.compile(r"\w+", re.UNICODE)
 MARKDOWN_HEADING = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
 
@@ -85,11 +83,13 @@ def check_pdf_delivery(
         "title": str(info.get("/Title", "")),
         "author": str(info.get("/Author", "")),
         "description": str(info.get("/Subject", "")),
+        "keywords": str(info.get("/Keywords", "")),
     }
     expected_metadata = {
         "title": metadata.title,
         "author": metadata.author,
         "description": metadata.description,
+        "keywords": ", ".join(metadata.keywords),
     }
     mismatches = [
         f"{key}={actual_metadata[key]!r}"
@@ -141,16 +141,25 @@ def check_pdf_delivery(
     return results
 
 
-def _extract_line_geometry(pdf_path: Path) -> list[tuple[str, float, float, int]]:
-    """Return (text, top, bottom, page) for every text line, top to bottom.
+class _Line(NamedTuple):
+    text: str
+    top: float
+    bottom: float
+    left: float
+    right: float
+    page: int
+
+
+def _extract_line_geometry(pdf_path: Path) -> list[_Line]:
+    """Return every text line with its box and page, top to bottom.
 
     pdfminer.six reports layout in PDF coordinates, which grow upward, so a
     line's ``y1`` is its top edge. Sorting each page by descending top edge
     reconstructs visual order regardless of content-stream order.
     """
-    lines: list[tuple[str, float, float, int]] = []
+    lines: list[_Line] = []
     for page_number, page_layout in enumerate(extract_pages(str(pdf_path))):
-        page_lines: list[tuple[str, float, float, int]] = []
+        page_lines: list[_Line] = []
         for element in page_layout:
             if not isinstance(element, LTTextContainer):
                 continue
@@ -158,19 +167,36 @@ def _extract_line_geometry(pdf_path: Path) -> list[tuple[str, float, float, int]
                 if isinstance(line, LTTextLine):
                     text = line.get_text().strip()
                     if text:
-                        page_lines.append((text, line.y1, line.y0, page_number))
-        page_lines.sort(key=lambda entry: -entry[1])
+                        page_lines.append(
+                            _Line(text, line.y1, line.y0, line.x0, line.x1, page_number)
+                        )
+        page_lines.sort(key=lambda entry: (-entry.top, entry.left))
         lines.extend(page_lines)
     return lines
 
 
+def _line_below(lines: list[_Line], index: int) -> _Line | None:
+    """Return the next line down the page that shares horizontal extent.
+
+    Runs beside each other on one row, such as contact columns or a
+    superscript, share no horizontal extent and so are never paired.
+    """
+    upper = lines[index]
+    for lower in lines[index + 1 :]:
+        if lower.page != upper.page:
+            return None
+        if lower.left < upper.right and upper.left < lower.right:
+            return lower
+    return None
+
+
 def check_visual_relationships(name: str, pdf_path: Path, markdown: str) -> CheckResult:
-    """Grade heading clearances and spacing within record sections.
+    """Grade heading clearances and the clearance between every pair of lines.
 
     Fails a line under 1.0 pt below a name or section heading, or 0.5 pt below
     a role heading. A line above a section heading, which carries a rule,
-    fails under 2.0 pt and warns under 3.0 pt. Record sections also require
-    clearance between adjacent lines; ordinary body lines are not measured.
+    fails under 2.0 pt and warns under 3.0 pt. Any other line fails under
+    0.25 pt above the line below it, which catches overlapping glyph boxes.
     """
     try:
         lines = _extract_line_geometry(pdf_path)
@@ -183,43 +209,33 @@ def check_visual_relationships(name: str, pdf_path: Path, markdown: str) -> Chec
     collisions: list[str] = []
     crowding: list[str] = []
     checked = 0
-    current_section = ""
     # PDF coordinates grow upward, so a clearance is the upper line's bottom
     # edge minus the lower line's top edge.
-    for index, (line_text, top, bottom, page_number) in enumerate(lines):
-        level = levels.get(line_text.casefold())
-        if level == 2:
-            current_section = line_text.casefold()
-        if (
-            level is None
-            and current_section in RECORD_SECTIONS
-            and index + 1 < len(lines)
-            and lines[index + 1][3] == page_number
-            and levels.get(lines[index + 1][0].casefold()) is None
-        ):
-            next_text, next_top, _next_bottom, _next_page = lines[index + 1]
-            gap = bottom - next_top
-            checked += 1
-            if gap < 0.25:
-                collisions.append(
-                    f"{line_text!r} -> {next_text!r}: {gap:.2f}pt (record minimum 0.25pt)"
-                )
+    for index, line in enumerate(lines):
+        level = levels.get(line.text.casefold())
+        below = _line_below(lines, index)
         if level is None:
+            if below is not None and levels.get(below.text.casefold()) is None:
+                gap = line.bottom - below.top
+                checked += 1
+                if gap < 0.25:
+                    collisions.append(
+                        f"{line.text!r} -> {below.text!r}: {gap:.2f}pt (body minimum 0.25pt)"
+                    )
             continue
-        if index + 1 < len(lines) and lines[index + 1][3] == page_number:
-            next_text, next_top, _next_bottom, _next_page = lines[index + 1]
+        if index + 1 < len(lines) and lines[index + 1].page == line.page:
+            following = lines[index + 1]
             minimum_gap = 1.0 if level in {1, 2} else 0.5
-            gap = bottom - next_top
+            gap = line.bottom - following.top
             checked += 1
             if gap < minimum_gap:
-                collisions.append(
-                    f"{line_text!r} -> {next_text!r}: {gap:.2f}pt (minimum {minimum_gap:.1f}pt)"
-                )
-        if level == 2 and index > 0 and lines[index - 1][3] == page_number:
-            previous_text, _previous_top, previous_bottom, _previous_page = lines[index - 1]
-            gap = previous_bottom - top
+                pair = f"{line.text!r} -> {following.text!r}"
+                collisions.append(f"{pair}: {gap:.2f}pt (minimum {minimum_gap:.1f}pt)")
+        if level == 2 and index > 0 and lines[index - 1].page == line.page:
+            previous = lines[index - 1]
+            gap = previous.bottom - line.top
             checked += 1
-            detail = f"{previous_text!r} above {line_text!r}: {gap:.2f}pt"
+            detail = f"{previous.text!r} above {line.text!r}: {gap:.2f}pt"
             if gap < 2.0:
                 collisions.append(f"{detail} (minimum 2.0pt)")
             elif gap < 3.0:
@@ -229,7 +245,7 @@ def check_visual_relationships(name: str, pdf_path: Path, markdown: str) -> Chec
         name,
         "pdf: visual relationships",
         severity,
-        "; ".join(collisions + crowding) or f"{checked} heading transition(s) clear",
+        "; ".join(collisions + crowding) or f"{checked} line clearance(s) clear",
     )
 
 
@@ -251,6 +267,8 @@ def _poppler_extract(executable: str, pdf_path: Path) -> str:
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=30,
     )
     return str(completed.stdout)

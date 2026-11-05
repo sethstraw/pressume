@@ -69,9 +69,14 @@ def inspect_pdf_layout(
     With an exact ``pages`` target, a final page whose text spans under 85% of
     the preceding pages' median height is also reported as lightly filled.
     """
-    with pdf_path.open("rb") as stream:
-        reader = PdfReader(stream)
-        return _inspect_pages(name, reader, markdown, pages)
+    try:
+        with pdf_path.open("rb") as stream:
+            reader = PdfReader(stream)
+            return _inspect_pages(name, reader, markdown, pages)
+    except Exception as error:  # PDF parser boundary
+        return [
+            CheckResult(name, "readability: page balance", Severity.WARN, f"unreadable: {error}")
+        ]
 
 
 def _inspect_pages(
